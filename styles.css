@@ -566,13 +566,18 @@ button:disabled {
   border-radius: 8px;
   display: grid;
   gap: 14px;
-  grid-template-columns: 1.1fr 0.7fr 0.7fr 1.2fr 0.7fr 1fr auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-bottom: 14px;
   padding: 14px;
 }
 
 .form-title {
-  align-self: center;
+  align-items: baseline;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 10px;
+  grid-column: 1 / -1;
+  padding-bottom: 12px;
 }
 
 .form-title strong,
@@ -584,7 +589,10 @@ button:disabled {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.4;
-  margin-top: 4px;
+}
+
+.menu-add-form button {
+  align-self: end;
 }
 
 .menu-manage-row {
