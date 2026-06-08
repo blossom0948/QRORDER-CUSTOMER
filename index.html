@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>테이블 주문</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-page="customer">
+    <header class="customer-header">
+      <div>
+        <strong id="storeName">매장</strong>
+        <span id="tableName">테이블 확인 중</span>
+      </div>
+      <button id="openCart" class="cart-chip" type="button">장바구니 <span id="cartCount">0</span></button>
+    </header>
+
+    <main class="customer-shell">
+      <section class="menu-area" aria-labelledby="menuTitle">
+        <div class="customer-title">
+          <p>QR 주문</p>
+          <h1 id="menuTitle">메뉴</h1>
+        </div>
+
+        <div class="category-tabs" role="tablist" aria-label="메뉴 카테고리">
+          <button class="active" type="button" data-category="all">전체</button>
+          <button type="button" data-category="main">메인</button>
+          <button type="button" data-category="side">사이드</button>
+          <button type="button" data-category="drink">음료</button>
+        </div>
+
+        <div id="menuList" class="customer-menu-list" aria-live="polite"></div>
+      </section>
+
+      <aside id="cartPanel" class="cart-panel" aria-labelledby="cartTitle">
+        <div class="panel-head">
+          <div>
+            <p>주문 확인</p>
+            <h2 id="cartTitle">장바구니</h2>
+          </div>
+          <button id="clearCart" class="icon-button" type="button" aria-label="장바구니 비우기">×</button>
+        </div>
+
+        <div id="cartItems" class="cart-items empty">담긴 메뉴가 없습니다.</div>
+        <div class="total-row">
+          <span>합계</span>
+          <strong id="cartTotal">0원</strong>
+        </div>
+        <button id="placeOrder" class="button primary full" type="button">주문하기</button>
+      </aside>
+
+      <section id="orderComplete" class="order-complete" hidden aria-live="polite">
+        <div>
+          <p>주문 접수 완료</p>
+          <h2 id="completeTitle">주문이 전송되었습니다.</h2>
+          <p id="completeMessage"></p>
+        </div>
+        <button id="newOrder" class="button secondary" type="button">추가 주문하기</button>
+      </section>
+    </main>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
