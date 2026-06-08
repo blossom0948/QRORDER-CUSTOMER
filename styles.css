@@ -172,6 +172,43 @@ button:disabled {
   white-space: nowrap;
 }
 
+.search-box,
+.order-note,
+.menu-add-form label {
+  color: var(--muted);
+  display: grid;
+  font-size: 13px;
+  font-weight: 800;
+  gap: 7px;
+}
+
+.search-box {
+  margin-bottom: 14px;
+}
+
+.search-box input,
+.order-note textarea,
+.menu-add-form input,
+.menu-add-form select {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.order-note {
+  margin-top: 14px;
+}
+
+.order-note textarea {
+  line-height: 1.45;
+  min-height: 76px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
 .category-tabs button.active {
   background: var(--ink);
   color: #fff;
@@ -237,6 +274,23 @@ button:disabled {
   white-space: nowrap;
 }
 
+.menu-title-line {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.menu-badge {
+  background: #edf6f1;
+  border: 1px solid #cfe6dc;
+  border-radius: 999px;
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 3px 8px;
+}
+
 .sold-badge {
   color: var(--red);
   font-size: 13px;
@@ -251,6 +305,17 @@ button:disabled {
   color: #fff;
   font-weight: 900;
   min-height: 42px;
+}
+
+.empty-menu {
+  align-items: center;
+  background: #fff;
+  border: 1px dashed #b9c9c1;
+  border-radius: 8px;
+  color: var(--muted);
+  display: flex;
+  justify-content: center;
+  min-height: 150px;
 }
 
 .cart-panel,
@@ -361,6 +426,14 @@ button:disabled {
   color: var(--muted);
   line-height: 1.6;
   margin: 0;
+}
+
+.complete-meta {
+  background: #eef4f1;
+  border-radius: 999px;
+  display: inline-flex;
+  justify-self: center;
+  padding: 7px 12px;
 }
 
 .admin-header-actions {
@@ -487,12 +560,39 @@ button:disabled {
   gap: 12px;
 }
 
+.menu-add-form {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1.1fr 0.7fr 0.7fr 1.2fr 0.7fr 1fr auto;
+  margin-bottom: 14px;
+  padding: 14px;
+}
+
+.form-title {
+  align-self: center;
+}
+
+.form-title strong,
+.form-title span {
+  display: block;
+}
+
+.form-title span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
 .menu-manage-row {
   align-items: center;
   box-shadow: none;
   display: grid;
   gap: 14px;
-  grid-template-columns: 86px minmax(130px, 1fr) minmax(180px, 1.4fr) 120px 90px;
+  grid-template-columns: 86px minmax(130px, 1fr) minmax(180px, 1.4fr) minmax(150px, 0.9fr) 120px 90px 64px;
   padding: 14px;
 }
 
@@ -554,6 +654,24 @@ button:disabled {
   width: 20px;
 }
 
+.delete-menu {
+  background: #fff1ed;
+  border: 1px solid #ffd3c8;
+  border-radius: 7px;
+  color: #a43f2c;
+  font-weight: 900;
+  min-height: 40px;
+}
+
+.order-note-line {
+  background: #f6f8f7;
+  border-left: 3px solid var(--green);
+  color: var(--ink);
+  line-height: 1.45;
+  margin: 0;
+  padding: 8px 10px;
+}
+
 @media (max-width: 1000px) {
   .customer-shell,
   .kanban {
@@ -564,12 +682,16 @@ button:disabled {
     position: static;
   }
 
+  .menu-add-form,
   .menu-manage-row {
     grid-template-columns: 72px minmax(0, 1fr);
   }
 
+  .form-title,
   .menu-manage-row label,
-  .sold-toggle {
+  .sold-toggle,
+  .menu-add-form label,
+  .menu-add-form button {
     grid-column: 1 / -1;
   }
 }

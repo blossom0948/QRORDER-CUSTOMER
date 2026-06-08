@@ -22,6 +22,11 @@
           <h1 id="menuTitle">메뉴</h1>
         </div>
 
+        <label class="search-box">
+          메뉴 검색
+          <input id="menuSearch" type="search" placeholder="삼겹살, 찌개, 음료 검색" autocomplete="off" />
+        </label>
+
         <div class="category-tabs" role="tablist" aria-label="메뉴 카테고리">
           <button class="active" type="button" data-category="all">전체</button>
           <button type="button" data-category="main">메인</button>
@@ -42,6 +47,10 @@
         </div>
 
         <div id="cartItems" class="cart-items empty">담긴 메뉴가 없습니다.</div>
+        <label class="order-note">
+          요청사항
+          <textarea id="orderNote" rows="3" placeholder="예: 덜 맵게 해주세요"></textarea>
+        </label>
         <div class="total-row">
           <span>합계</span>
           <strong id="cartTotal">0원</strong>
@@ -53,6 +62,7 @@
         <div>
           <p>주문 접수 완료</p>
           <h2 id="completeTitle">주문이 전송되었습니다.</h2>
+          <strong id="completeMeta" class="complete-meta"></strong>
           <p id="completeMessage"></p>
         </div>
         <button id="newOrder" class="button secondary" type="button">추가 주문하기</button>
