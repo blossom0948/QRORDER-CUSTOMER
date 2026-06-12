@@ -81,6 +81,11 @@ const state = {
   activeCategory: "all",
   searchQuery: "",
   soundEnabled: false,
+  audioContext: null,
+  adminOrderFilter: "all",
+  knownPendingIds: new Set(),
+  lastAlertMessage: "",
+  freshAlertUntil: 0,
   returnTimer: null,
 };
 
@@ -148,6 +153,7 @@ function initCustomer() {
     if (event.key === MENU_KEY) {
       state.menu = loadMenu();
       renderCustomerMenu();
+      renderPopularRail();
       renderCart();
     }
     if (event.key === ORDER_KEY) {
@@ -158,6 +164,7 @@ function initCustomer() {
   watchMenuChanges();
   watchOrderChanges();
   renderCustomerMenu();
+  renderPopularRail();
   renderCart();
   renderCurrentOrder();
 }
@@ -171,6 +178,7 @@ function watchMenuChanges() {
     state.menu = nextMenu;
     lastMenuSnapshot = nextSnapshot;
     renderCustomerMenu();
+    renderPopularRail();
   }, 1200);
 }
 
@@ -205,6 +213,11 @@ function bindCustomerEvents() {
   document.querySelector("#menuList").addEventListener("click", (event) => {
     const addButton = event.target.closest("[data-add]");
     if (addButton) addToCart(addButton.dataset.add);
+  });
+
+  document.querySelector("#popularRail").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-quick-add]");
+    if (button) addToCart(button.dataset.quickAdd);
   });
 
   document.querySelector("#cartItems").addEventListener("click", (event) => {
@@ -255,6 +268,39 @@ function showCompleteScreen() {
   document.querySelector("#orderComplete").hidden = false;
 }
 
+function renderPopularRail() {
+  const rail = document.querySelector("#popularRail");
+  if (!rail) return;
+
+  const highlighted = state.menu
+    .filter((item) => !item.soldOut && item.badge)
+    .concat(state.menu.filter((item) => !item.soldOut && !item.badge))
+    .slice(0, 4);
+
+  if (highlighted.length === 0) {
+    rail.hidden = true;
+    rail.innerHTML = "";
+    return;
+  }
+
+  rail.hidden = false;
+  rail.innerHTML = `
+    <strong>빠른 담기</strong>
+    <div>
+      ${highlighted
+        .map(
+          (item) => `
+            <button type="button" data-quick-add="${item.id}">
+              <span>${escapeHtml(item.badge || categoryLabels[item.category])}</span>
+              ${escapeHtml(item.name)}
+            </button>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
 function renderCustomerMenu() {
   const list = document.querySelector("#menuList");
   const filtered = state.menu.filter((item) => {
@@ -275,14 +321,15 @@ function renderCustomerMenu() {
         ? `<img class="menu-thumb" src="${escapeAttr(item.image)}" alt="${escapeAttr(item.name)} 이미지" loading="lazy" />`
         : "";
       const badge = item.badge ? `<span class="menu-badge">${escapeHtml(item.badge)}</span>` : "";
+      const category = `<span class="category-label">${categoryLabels[item.category]}</span>`;
       return `
         <article class="customer-menu-card ${item.image ? "has-image" : ""} ${item.soldOut ? "sold-out" : ""}">
           ${thumb}
           <div class="menu-copy">
             <div>
+              <div class="menu-meta-line">${category}${badge}</div>
               <div class="menu-title-line">
                 <h2>${escapeHtml(item.name)}${item.soldOut ? '<span class="sold-badge">품절</span>' : ""}</h2>
-                ${badge}
               </div>
               <p>${escapeHtml(item.desc)}</p>
             </div>
@@ -520,6 +567,7 @@ function requestService(serviceName) {
 
 function initAdmin() {
   bindAdminEvents();
+  syncKnownPendingOrders();
   renderAdmin();
   window.setInterval(refreshOrders, 1200);
 }
@@ -529,6 +577,17 @@ function bindAdminEvents() {
     const button = event.target.closest("[data-status]");
     if (!button) return;
     moveOrder(button.dataset.status);
+  });
+
+  document.querySelectorAll("[data-order-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.adminOrderFilter = button.dataset.orderFilter;
+      document.querySelectorAll("[data-order-filter]").forEach((chip) => {
+        chip.classList.toggle("active", chip === button);
+      });
+      renderOrderBoard();
+      renderBoardHint();
+    });
   });
 
   document.querySelector("#menuManager").addEventListener("input", (event) => {
@@ -556,34 +615,66 @@ function bindAdminEvents() {
 
   document.querySelector("#menuManager").addEventListener("click", (event) => {
     const deleteButton = event.target.closest("[data-delete]");
-    if (!deleteButton) return;
-    deleteMenuItem(deleteButton.dataset.delete);
+    const moveButton = event.target.closest("[data-move]");
+    if (deleteButton) {
+      deleteMenuItem(deleteButton.dataset.delete);
+      return;
+    }
+    if (moveButton) {
+      moveMenuItem(moveButton.dataset.id, moveButton.dataset.move);
+    }
   });
 
   document.querySelector("#seedOrder").addEventListener("click", seedOrder);
   document.querySelector("#addMenuForm").addEventListener("submit", addMenuItem);
   document.querySelector("#toggleSound").addEventListener("click", () => {
     state.soundEnabled = !state.soundEnabled;
+    if (state.soundEnabled) ensureAudioContext();
     const button = document.querySelector("#toggleSound");
-    button.textContent = state.soundEnabled ? "알림 끄기" : "알림 켜기";
+    button.textContent = state.soundEnabled ? "딩동 알림 끄기" : "딩동 알림 켜기";
     button.setAttribute("aria-pressed", String(state.soundEnabled));
     if (state.soundEnabled) playAlert();
+    renderAlertPanel();
   });
 }
 
 function refreshOrders() {
-  const previousPending = state.orders.filter((order) => order.status === "pending").length;
   state.orders = loadOrders();
-  const nextPending = state.orders.filter((order) => order.status === "pending").length;
-  if (state.soundEnabled && nextPending > previousPending) playAlert();
+  const newOrders = getNewPendingOrders();
+  if (newOrders.length > 0) notifyNewOrders(newOrders);
+  syncKnownPendingOrders();
   renderMetrics();
+  renderAlertPanel();
   renderOrderBoard();
+  renderBoardHint();
+}
+
+function syncKnownPendingOrders() {
+  state.knownPendingIds = new Set(
+    state.orders.filter((order) => order.status === "pending").map((order) => order.id),
+  );
+}
+
+function getNewPendingOrders() {
+  return state.orders.filter((order) => order.status === "pending" && !state.knownPendingIds.has(order.id));
+}
+
+function notifyNewOrders(newOrders) {
+  const latest = newOrders[0];
+  const itemName = latest.service ? latest.items[0]?.name || "직원 호출" : latest.items.map((item) => item.name).join(", ");
+  state.lastAlertMessage = `${Number(latest.table) || latest.table}번 테이블 · ${itemName}`;
+  state.freshAlertUntil = Date.now() + 5000;
+  if (state.soundEnabled) playAlert();
+  if ("vibrate" in navigator) navigator.vibrate([120, 50, 120]);
+  renderAlertPanel(latest);
 }
 
 function renderAdmin() {
   renderMetrics();
+  renderAlertPanel();
   renderOrderBoard();
   renderMenuManager();
+  renderBoardHint();
 }
 
 function renderMetrics() {
@@ -593,10 +684,60 @@ function renderMetrics() {
   document.querySelector("#todaySales").textContent = formatMoney(
     state.orders.reduce((sum, order) => sum + order.total, 0),
   );
+
+  const activeTables = new Set(
+    state.orders
+      .filter((order) => order.status !== "served")
+      .map((order) => String(order.table)),
+  );
+  const pendingService = state.orders.filter((order) => order.status === "pending" && order.service).length;
+  const soldOut = state.menu.filter((item) => item.soldOut).length;
+  const pendingOrders = state.orders.filter((order) => order.status === "pending");
+  const oldestMinutes = pendingOrders.length
+    ? Math.max(...pendingOrders.map((order) => minutesSince(order.createdAt)))
+    : 0;
+
+  document.querySelector("#activeTableCount").textContent = String(activeTables.size);
+  document.querySelector("#serviceCount").textContent = String(pendingService);
+  document.querySelector("#soldOutCount").textContent = String(soldOut);
+  document.querySelector("#oldestWait").textContent = `${oldestMinutes}분`;
 }
 
 function countOrders(status) {
   return String(state.orders.filter((order) => order.status === status).length);
+}
+
+function renderAlertPanel(latestOrder = null) {
+  const panel = document.querySelector("#alertPanel");
+  if (!panel) return;
+
+  const pending = state.orders.filter((order) => order.status === "pending");
+  const title = pending.length > 0 ? `${pending.length}건 접수 대기` : "새 주문 대기 중";
+  const message =
+    pending.length > 0
+      ? state.lastAlertMessage ||
+        (pending[0]
+          ? `${Number(pending[0].table) || pending[0].table}번 테이블 주문을 확인하세요.`
+          : "대기 주문을 확인하세요.")
+      : "영업 시작 전에 딩동 알림을 켜두면 새 주문과 직원 호출을 바로 들을 수 있습니다.";
+
+  panel.classList.toggle("has-new", Boolean(latestOrder) || state.freshAlertUntil > Date.now());
+  document.querySelector("#alertTitle").textContent = title;
+  document.querySelector("#alertMessage").textContent = message;
+  document.querySelector("#soundState").textContent = state.soundEnabled ? "딩동 알림 켜짐" : "알림 꺼짐";
+}
+
+function renderBoardHint() {
+  const hint = document.querySelector("#boardHint");
+  if (!hint) return;
+
+  const filteredCount = state.orders.filter(orderMatchesFilter).length;
+  const filterLabel = {
+    all: "전체 주문",
+    food: "음식 주문",
+    service: "직원 호출",
+  }[state.adminOrderFilter];
+  hint.textContent = `${filterLabel} ${filteredCount}건 표시 중 · 대기 주문은 딩동 알림으로 알려줍니다.`;
 }
 
 function renderOrderBoard() {
@@ -608,7 +749,7 @@ function renderOrderBoard() {
 
   document.querySelector("#orderBoard").innerHTML = columns
     .map((column) => {
-      const orders = state.orders.filter((order) => order.status === column.id);
+      const orders = state.orders.filter((order) => order.status === column.id && orderMatchesFilter(order));
       return `
         <section class="kanban-column">
           <h3>${column.title}<span>${orders.length}</span></h3>
@@ -623,28 +764,41 @@ function renderOrderBoard() {
     .join("");
 }
 
+function orderMatchesFilter(order) {
+  if (state.adminOrderFilter === "food") return !order.service;
+  if (state.adminOrderFilter === "service") return Boolean(order.service);
+  return true;
+}
+
 function renderOrderCard(order, column) {
   const itemList = order.items
     .map((item) => `<li>${escapeHtml(item.name)} ${item.qty}개</li>`)
     .join("");
-  const minutes = Math.max(0, Math.round((Date.now() - new Date(order.createdAt).getTime()) / 60000));
+  const minutes = minutesSince(order.createdAt);
+  const waitClass = order.status === "pending" && minutes >= 10 ? "is-urgent" : "";
   const note = order.note ? `<p class="order-note-line">요청: ${escapeHtml(order.note)}</p>` : "";
   const orderNo = order.orderNo ? `<small>주문번호 ${escapeHtml(order.orderNo)}</small>` : "";
   const serviceBadge = order.service ? '<span class="service-badge">직원 호출</span>' : "";
 
   return `
-    <article class="order-card ${order.status}">
+    <article class="order-card ${order.status} ${waitClass}">
       <div class="order-card-head">
         <strong>${Number(order.table) || order.table}번 테이블</strong>
         <span>${serviceBadge}${formatMoney(order.total)}</span>
       </div>
+      <div class="order-card-meta">
+        ${orderNo}
+        <small>${minutes === 0 ? "방금 접수" : `${minutes}분 전 접수`}</small>
+      </div>
       <ul>${itemList}</ul>
       ${note}
-      ${orderNo}
-      <small>${minutes === 0 ? "방금 접수" : `${minutes}분 전 접수`}</small>
       <button type="button" data-status="${order.id}">${column.action}</button>
     </article>
   `;
+}
+
+function minutesSince(value) {
+  return Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60000));
 }
 
 function moveOrder(orderId) {
@@ -661,17 +815,37 @@ function moveOrder(orderId) {
 
 function renderMenuManager() {
   document.querySelector("#menuManager").innerHTML = state.menu
-    .map((item) => {
+    .map((item, index) => {
       const preview = item.image
         ? `<img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.name)} 이미지 미리보기" />`
         : `<span class="image-placeholder">이미지 없음</span>`;
       return `
         <article class="menu-manage-row">
           <div class="image-preview">${preview}</div>
-          <div class="manage-copy">
-            <strong>${escapeHtml(item.name)}</strong>
-            <small>${categoryLabels[item.category]}${item.badge ? ` · ${escapeHtml(item.badge)}` : ""}</small>
-          </div>
+          <label>
+            메뉴명
+            <input data-id="${item.id}" data-field="name" value="${escapeAttr(item.name)}" />
+          </label>
+          <label>
+            설명
+            <input data-id="${item.id}" data-field="desc" value="${escapeAttr(item.desc)}" />
+          </label>
+          <label>
+            분류
+            <select data-id="${item.id}" data-field="category">
+              <option value="main" ${item.category === "main" ? "selected" : ""}>메인</option>
+              <option value="side" ${item.category === "side" ? "selected" : ""}>사이드</option>
+              <option value="drink" ${item.category === "drink" ? "selected" : ""}>음료</option>
+            </select>
+          </label>
+          <label>
+            가격
+            <input data-id="${item.id}" data-field="price" type="number" min="0" step="500" value="${item.price}" />
+          </label>
+          <label>
+            배지
+            <input data-id="${item.id}" data-field="badge" value="${escapeAttr(item.badge || "")}" placeholder="추천, 인기" />
+          </label>
           <label>
             이미지 URL
             <input data-id="${item.id}" data-field="image" value="${escapeAttr(item.image)}" placeholder="https://..." />
@@ -680,15 +854,15 @@ function renderMenuManager() {
             파일에서 변경
             <input data-file="${item.id}" type="file" accept="image/*" />
           </label>
-          <label>
-            가격
-            <input data-id="${item.id}" data-field="price" type="number" min="0" step="500" value="${item.price}" />
-          </label>
           <label class="sold-toggle">
             <input data-sold="${item.id}" type="checkbox" ${item.soldOut ? "checked" : ""} />
             품절
           </label>
-          <button class="delete-menu" type="button" data-delete="${item.id}">삭제</button>
+          <div class="row-actions">
+            <button type="button" data-id="${item.id}" data-move="up" ${index === 0 ? "disabled" : ""}>위</button>
+            <button type="button" data-id="${item.id}" data-move="down" ${index === state.menu.length - 1 ? "disabled" : ""}>아래</button>
+            <button class="delete-menu" type="button" data-delete="${item.id}">삭제</button>
+          </div>
         </article>
       `;
     })
@@ -700,6 +874,7 @@ function updateMenuField(id, field, value, shouldRender = true) {
   if (!item) return;
   item[field] = field === "price" ? Number(value) || 0 : value;
   saveMenu();
+  if (pageType() === "admin") renderMetrics();
   if (shouldRender) renderMenuManager();
 }
 
@@ -747,6 +922,19 @@ function deleteMenuItem(id) {
   renderMenuManager();
 }
 
+function moveMenuItem(id, direction) {
+  const index = state.menu.findIndex((entry) => entry.id === id);
+  if (index < 0) return;
+
+  const nextIndex = direction === "up" ? index - 1 : index + 1;
+  if (nextIndex < 0 || nextIndex >= state.menu.length) return;
+
+  const [item] = state.menu.splice(index, 1);
+  state.menu.splice(nextIndex, 0, item);
+  saveMenu();
+  renderMenuManager();
+}
+
 function imageFileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -781,7 +969,7 @@ function seedOrder() {
   }));
   const total = selected.reduce((sum, item) => sum + item.price * item.qty, 0);
 
-  state.orders.unshift({
+  const order = {
     id: makeId(),
     store: "고깃집 온기",
     table: "05",
@@ -791,28 +979,52 @@ function seedOrder() {
     orderNo: String(Date.now()).slice(-6),
     status: "pending",
     createdAt: new Date(),
-  });
+  };
+
+  state.orders.unshift(order);
   saveOrders();
+  notifyNewOrders([order]);
+  syncKnownPendingOrders();
   renderAdmin();
-  playAlert();
 }
 
 function playAlert() {
   if (!state.soundEnabled) return;
-  const audio = new AudioContext();
-  const now = audio.currentTime;
+  const audio = ensureAudioContext();
+  if (!audio) return;
 
-  [0, 0.16, 0.32].forEach((offset) => {
-    const osc = audio.createOscillator();
-    const gain = audio.createGain();
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.0001, now + offset);
-    gain.gain.exponentialRampToValueAtTime(0.16, now + offset + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.12);
-    osc.connect(gain).connect(audio.destination);
-    osc.start(now + offset);
-    osc.stop(now + offset + 0.14);
-  });
+  const playDingDong = () => {
+    const now = audio.currentTime + 0.03;
+    playTone(audio, 1046.5, now, 0.16, 0.18);
+    playTone(audio, 784, now + 0.2, 0.24, 0.2);
+  };
+
+  if (audio.state === "suspended") {
+    audio.resume().then(playDingDong).catch(() => {});
+    return;
+  }
+
+  playDingDong();
+}
+
+function ensureAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!state.audioContext) state.audioContext = new AudioContextClass();
+  return state.audioContext;
+}
+
+function playTone(audio, frequency, start, duration, volume) {
+  const osc = audio.createOscillator();
+  const gain = audio.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(frequency, start);
+  gain.gain.setValueAtTime(0.0001, start);
+  gain.gain.exponentialRampToValueAtTime(volume, start + 0.025);
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  osc.connect(gain).connect(audio.destination);
+  osc.start(start);
+  osc.stop(start + duration + 0.03);
 }
 
 function escapeHtml(value) {
