@@ -1,5 +1,6 @@
 const MENU_KEY = "qrorder.menu.v3";
 const ORDER_KEY = "qrorder.orders.v3";
+const ACTIVE_ORDER_PREFIX = "qrorder.activeOrder.v3";
 
 const formatter = new Intl.NumberFormat("ko-KR", {
   style: "currency",
@@ -12,6 +13,12 @@ const categoryLabels = {
   main: "메인",
   side: "사이드",
   drink: "음료",
+};
+
+const statusLabels = {
+  pending: "접수",
+  cooking: "조리중",
+  served: "완료",
 };
 
 const defaultMenu = [
@@ -74,6 +81,7 @@ const state = {
   activeCategory: "all",
   searchQuery: "",
   soundEnabled: false,
+  returnTimer: null,
 };
 
 function formatMoney(value) {
@@ -116,6 +124,11 @@ function getTableInfo() {
   };
 }
 
+function activeOrderKey() {
+  const { store, table } = getTableInfo();
+  return `${ACTIVE_ORDER_PREFIX}:${store}:${table}`;
+}
+
 function makeId() {
   if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return `order-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -132,13 +145,21 @@ function initCustomer() {
 
   bindCustomerEvents();
   window.addEventListener("storage", (event) => {
-    if (event.key !== MENU_KEY) return;
-    state.menu = loadMenu();
-    renderCustomerMenu();
+    if (event.key === MENU_KEY) {
+      state.menu = loadMenu();
+      renderCustomerMenu();
+      renderCart();
+    }
+    if (event.key === ORDER_KEY) {
+      state.orders = loadOrders();
+      renderCurrentOrder();
+    }
   });
   watchMenuChanges();
+  watchOrderChanges();
   renderCustomerMenu();
   renderCart();
+  renderCurrentOrder();
 }
 
 function watchMenuChanges() {
@@ -150,6 +171,18 @@ function watchMenuChanges() {
     state.menu = nextMenu;
     lastMenuSnapshot = nextSnapshot;
     renderCustomerMenu();
+  }, 1200);
+}
+
+function watchOrderChanges() {
+  let lastOrderSnapshot = JSON.stringify(state.orders);
+  window.setInterval(() => {
+    const nextOrders = loadOrders();
+    const nextSnapshot = JSON.stringify(nextOrders);
+    if (nextSnapshot === lastOrderSnapshot) return;
+    state.orders = nextOrders;
+    lastOrderSnapshot = nextSnapshot;
+    renderCurrentOrder();
   }, 1200);
 }
 
@@ -184,6 +217,16 @@ function bindCustomerEvents() {
     if (remove) removeCartItem(remove.dataset.remove);
   });
 
+  document.querySelector("#recommendations").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-recommend-add]");
+    if (button) addToCart(button.dataset.recommendAdd);
+  });
+
+  document.querySelector("#currentOrder").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-service]");
+    if (button) requestService(button.dataset.service);
+  });
+
   document.querySelector("#clearCart").addEventListener("click", () => {
     state.cart = [];
     renderCart();
@@ -195,10 +238,21 @@ function bindCustomerEvents() {
 
   document.querySelector("#placeOrder").addEventListener("click", placeOrder);
   document.querySelector("#newOrder").addEventListener("click", () => {
-    document.querySelector("#orderComplete").hidden = true;
-    document.querySelector(".menu-area").hidden = false;
-    document.querySelector("#cartPanel").hidden = false;
+    stopReturnCountdown();
+    showOrderScreen();
   });
+}
+
+function showOrderScreen() {
+  document.querySelector("#orderComplete").hidden = true;
+  document.querySelector(".menu-area").hidden = false;
+  document.querySelector("#cartPanel").hidden = false;
+}
+
+function showCompleteScreen() {
+  document.querySelector(".menu-area").hidden = true;
+  document.querySelector("#cartPanel").hidden = true;
+  document.querySelector("#orderComplete").hidden = false;
 }
 
 function renderCustomerMenu() {
@@ -274,6 +328,7 @@ function renderCart() {
   document.querySelector("#cartTotal").textContent = formatMoney(total);
   document.querySelector("#placeOrder").disabled = state.cart.length === 0;
   cartCount.textContent = String(state.cart.reduce((sum, item) => sum + item.qty, 0));
+  renderRecommendations();
 
   if (state.cart.length === 0) {
     cartItems.className = "cart-items empty";
@@ -302,6 +357,45 @@ function renderCart() {
     .join("");
 }
 
+function renderRecommendations() {
+  const box = document.querySelector("#recommendations");
+  if (!box) return;
+
+  const cartIds = new Set(state.cart.map((item) => item.id));
+  const hasMain = state.cart.some((item) => {
+    const menuItem = state.menu.find((entry) => entry.id === item.id);
+    return menuItem?.category === "main";
+  });
+  const preferredCategories = hasMain ? ["side", "drink"] : ["main", "side", "drink"];
+  const recommended = state.menu
+    .filter((item) => !item.soldOut && !cartIds.has(item.id) && preferredCategories.includes(item.category))
+    .sort((a, b) => preferredCategories.indexOf(a.category) - preferredCategories.indexOf(b.category))
+    .slice(0, 3);
+
+  if (state.cart.length === 0 || recommended.length === 0) {
+    box.hidden = true;
+    box.innerHTML = "";
+    return;
+  }
+
+  box.hidden = false;
+  box.innerHTML = `
+    <strong>함께 담기 좋은 메뉴</strong>
+    <div>
+      ${recommended
+        .map(
+          (item) => `
+            <button type="button" data-recommend-add="${item.id}">
+              <span>${escapeHtml(item.name)}</span>
+              <small>${formatMoney(item.price)}</small>
+            </button>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
 function placeOrder() {
   if (state.cart.length === 0) return;
 
@@ -323,16 +417,105 @@ function placeOrder() {
 
   state.orders.unshift(order);
   saveOrders();
+  localStorage.setItem(activeOrderKey(), order.id);
   state.cart = [];
   renderCart();
+  renderCurrentOrder();
 
-  document.querySelector(".menu-area").hidden = true;
-  document.querySelector("#cartPanel").hidden = true;
-  document.querySelector("#orderComplete").hidden = false;
+  showCompleteScreen();
   document.querySelector("#completeTitle").textContent = `${Number(table) || table}번 테이블 주문 접수`;
   document.querySelector("#completeMeta").textContent = `주문번호 ${orderNo}`;
   document.querySelector("#completeMessage").textContent = `합계 ${formatMoney(total)} 주문이 접수되었습니다. 직원이 확인 후 준비합니다.`;
   document.querySelector("#orderNote").value = "";
+  startReturnCountdown();
+}
+
+function startReturnCountdown() {
+  const countdown = document.querySelector("#returnCountdown");
+  let remaining = 5;
+  countdown.textContent = `${remaining}초 후 주문 화면으로 돌아갑니다.`;
+  stopReturnCountdown();
+  state.returnTimer = window.setInterval(() => {
+    remaining -= 1;
+    if (remaining <= 0) {
+      stopReturnCountdown();
+      showOrderScreen();
+      return;
+    }
+    countdown.textContent = `${remaining}초 후 주문 화면으로 돌아갑니다.`;
+  }, 1000);
+}
+
+function stopReturnCountdown() {
+  if (!state.returnTimer) return;
+  window.clearInterval(state.returnTimer);
+  state.returnTimer = null;
+}
+
+function getActiveOrder() {
+  const activeId = localStorage.getItem(activeOrderKey());
+  if (!activeId) return null;
+  const order = state.orders.find((entry) => entry.id === activeId);
+  if (!order) {
+    localStorage.removeItem(activeOrderKey());
+    return null;
+  }
+  return order;
+}
+
+function renderCurrentOrder() {
+  const panel = document.querySelector("#currentOrder");
+  if (!panel) return;
+
+  const order = getActiveOrder();
+  if (!order) {
+    panel.hidden = true;
+    return;
+  }
+
+  const statusOrder = ["pending", "cooking", "served"];
+  const currentIndex = Math.max(0, statusOrder.indexOf(order.status));
+  const itemText = order.items.map((item) => `${item.name} ${item.qty}개`).join(", ");
+
+  panel.hidden = false;
+  document.querySelector("#currentOrderTitle").textContent = `주문번호 ${order.orderNo || "-"}`;
+  document.querySelector("#currentOrderStatus").textContent = statusLabels[order.status] || "접수";
+  document.querySelector("#currentOrderItems").innerHTML = `
+    <strong>${escapeHtml(itemText)}</strong>
+    <span>${formatMoney(order.total)}</span>
+  `;
+  document.querySelectorAll("#progressSteps li").forEach((step, index) => {
+    step.classList.toggle("is-done", index < currentIndex);
+    step.classList.toggle("is-active", index === currentIndex);
+  });
+}
+
+function requestService(serviceName) {
+  const { store, table } = getTableInfo();
+  const orderNo = String(Date.now()).slice(-6);
+  const requestOrder = {
+    id: makeId(),
+    orderNo,
+    store,
+    table,
+    items: [{ id: `service-${serviceName}`, name: `${serviceName} 요청`, price: 0, qty: 1 }],
+    total: 0,
+    note: `${serviceName} 부탁드립니다.`,
+    status: "pending",
+    service: true,
+    createdAt: new Date(),
+  };
+
+  state.orders.unshift(requestOrder);
+  saveOrders();
+
+  const notice = document.querySelector("#serviceNotice");
+  if (notice) {
+    notice.textContent = `${serviceName} 요청을 보냈습니다.`;
+    window.setTimeout(() => {
+      if (notice.textContent.includes(serviceName)) notice.textContent = "";
+    }, 2500);
+  }
 }
 
 function initAdmin() {
@@ -354,14 +537,20 @@ function bindAdminEvents() {
     updateMenuField(input.dataset.id, input.dataset.field, input.value, false);
   });
 
-  document.querySelector("#menuManager").addEventListener("change", (event) => {
+  document.querySelector("#menuManager").addEventListener("change", async (event) => {
     const checkbox = event.target.closest("[data-sold]");
     const input = event.target.closest("[data-field]");
     const fileInput = event.target.closest("[data-file]");
-    if (checkbox) updateMenuField(checkbox.dataset.sold, "soldOut", checkbox.checked);
-    if (input) updateMenuField(input.dataset.id, input.dataset.field, input.value);
+    if (checkbox) {
+      updateMenuField(checkbox.dataset.sold, "soldOut", checkbox.checked);
+      return;
+    }
+    if (input) {
+      updateMenuField(input.dataset.id, input.dataset.field, input.value);
+      return;
+    }
     if (fileInput && fileInput.files[0]) {
-      updateMenuImageFromFile(fileInput.dataset.file, fileInput.files[0]);
+      await updateMenuImageFromFile(fileInput.dataset.file, fileInput.files[0]);
     }
   });
 
@@ -387,7 +576,8 @@ function refreshOrders() {
   state.orders = loadOrders();
   const nextPending = state.orders.filter((order) => order.status === "pending").length;
   if (state.soundEnabled && nextPending > previousPending) playAlert();
-  renderAdmin();
+  renderMetrics();
+  renderOrderBoard();
 }
 
 function renderAdmin() {
@@ -440,12 +630,13 @@ function renderOrderCard(order, column) {
   const minutes = Math.max(0, Math.round((Date.now() - new Date(order.createdAt).getTime()) / 60000));
   const note = order.note ? `<p class="order-note-line">요청: ${escapeHtml(order.note)}</p>` : "";
   const orderNo = order.orderNo ? `<small>주문번호 ${escapeHtml(order.orderNo)}</small>` : "";
+  const serviceBadge = order.service ? '<span class="service-badge">직원 호출</span>' : "";
 
   return `
     <article class="order-card ${order.status}">
       <div class="order-card-head">
         <strong>${Number(order.table) || order.table}번 테이블</strong>
-        <span>${formatMoney(order.total)}</span>
+        <span>${serviceBadge}${formatMoney(order.total)}</span>
       </div>
       <ul>${itemList}</ul>
       ${note}
@@ -513,8 +704,12 @@ function updateMenuField(id, field, value, shouldRender = true) {
 }
 
 async function updateMenuImageFromFile(id, file) {
-  const dataUrl = await imageFileToDataUrl(file);
-  updateMenuField(id, "image", dataUrl);
+  try {
+    const dataUrl = await imageFileToDataUrl(file);
+    updateMenuField(id, "image", dataUrl);
+  } catch (error) {
+    window.alert(error.message || "이미지를 적용하지 못했습니다.");
+  }
 }
 
 async function addMenuItem(event) {

@@ -16,6 +16,29 @@
     </header>
 
     <main class="customer-shell">
+      <section id="currentOrder" class="current-order" hidden aria-live="polite">
+        <div class="current-order-head">
+          <div>
+            <p>내 주문 현황</p>
+            <h2 id="currentOrderTitle">진행 중인 주문</h2>
+          </div>
+          <span id="currentOrderStatus" class="status-pill">접수</span>
+        </div>
+        <ol id="progressSteps" class="progress-steps" aria-label="주문 진행 상태">
+          <li data-step="pending">접수</li>
+          <li data-step="cooking">조리중</li>
+          <li data-step="served">완료</li>
+        </ol>
+        <div id="currentOrderItems" class="current-order-items"></div>
+        <div class="service-call-row" aria-label="직원 호출">
+          <span>직원 호출</span>
+          <button type="button" data-service="물">물</button>
+          <button type="button" data-service="앞접시">앞접시</button>
+          <button type="button" data-service="냅킨">냅킨</button>
+          <small id="serviceNotice" class="service-notice"></small>
+        </div>
+      </section>
+
       <section class="menu-area" aria-labelledby="menuTitle">
         <div class="customer-title">
           <p>QR 주문</p>
@@ -47,6 +70,7 @@
         </div>
 
         <div id="cartItems" class="cart-items empty">담긴 메뉴가 없습니다.</div>
+        <div id="recommendations" class="recommendations" hidden></div>
         <label class="order-note">
           요청사항
           <textarea id="orderNote" rows="3" placeholder="예: 덜 맵게 해주세요"></textarea>
@@ -64,6 +88,7 @@
           <h2 id="completeTitle">주문이 전송되었습니다.</h2>
           <strong id="completeMeta" class="complete-meta"></strong>
           <p id="completeMessage"></p>
+          <p id="returnCountdown" class="return-countdown"></p>
         </div>
         <button id="newOrder" class="button secondary" type="button">추가 주문하기</button>
       </section>
