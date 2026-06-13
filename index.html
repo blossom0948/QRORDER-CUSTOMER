@@ -16,6 +16,14 @@
     </header>
 
     <main class="customer-shell">
+      <section class="customer-status-strip" aria-label="주문 안내">
+        <div>
+          <span>매장 식사</span>
+          <strong>메뉴를 고르고 바로 주문하세요</strong>
+        </div>
+        <small>주문 후 진행상황이 이 화면에 표시됩니다.</small>
+      </section>
+
       <section id="currentOrder" class="current-order" hidden aria-live="polite">
         <div class="current-order-head">
           <div>
@@ -95,6 +103,33 @@
         <button id="newOrder" class="button secondary" type="button">추가 주문하기</button>
       </section>
     </main>
+
+    <section id="menuDetail" class="menu-detail-sheet" hidden aria-labelledby="detailTitle" aria-modal="true">
+      <div class="sheet-backdrop" data-close-detail></div>
+      <div class="sheet-panel">
+        <button class="sheet-close" type="button" data-close-detail aria-label="메뉴 상세 닫기">×</button>
+        <div id="detailImage" class="detail-image"></div>
+        <div class="detail-copy">
+          <span id="detailBadge" class="menu-badge"></span>
+          <h2 id="detailTitle">메뉴명</h2>
+          <p id="detailDesc"></p>
+          <strong id="detailPrice"></strong>
+        </div>
+        <div class="detail-options">
+          <p>옵션</p>
+          <div id="detailOptions" class="option-chips"></div>
+        </div>
+        <button id="detailAdd" class="button primary full" type="button">선택해서 담기</button>
+      </div>
+    </section>
+
+    <div id="bottomCartBar" class="bottom-cart-bar" hidden>
+      <div>
+        <span id="bottomCartCount">0개 담김</span>
+        <strong id="bottomCartTotal">0원</strong>
+      </div>
+      <button id="bottomOpenCart" type="button">주문 확인</button>
+    </div>
 
     <script src="app.js" defer></script>
   </body>

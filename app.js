@@ -80,6 +80,9 @@ const state = {
   cart: [],
   activeCategory: "all",
   searchQuery: "",
+  selectedMenuId: null,
+  selectedOption: "기본",
+  orderLocked: false,
   soundEnabled: false,
   audioContext: null,
   adminOrderFilter: "all",
@@ -132,6 +135,16 @@ function getTableInfo() {
 function activeOrderKey() {
   const { store, table } = getTableInfo();
   return `${ACTIVE_ORDER_PREFIX}:${store}:${table}`;
+}
+
+function getMenuOptions(item) {
+  if (item.category === "drink") return ["기본", "얼음 적게", "얼음 많이", "잔 추가"];
+  if (item.category === "side") return ["기본", "덜 맵게", "맵게", "앞접시 필요"];
+  return ["기본", "덜 익힘", "바싹 익힘", "쌈 채소 추가"];
+}
+
+function makeCartLineId(menuId, option = "기본") {
+  return `${menuId}::${option || "기본"}`;
 }
 
 function makeId() {
@@ -212,7 +225,12 @@ function bindCustomerEvents() {
 
   document.querySelector("#menuList").addEventListener("click", (event) => {
     const addButton = event.target.closest("[data-add]");
-    if (addButton) addToCart(addButton.dataset.add);
+    const detailButton = event.target.closest("[data-detail]");
+    if (addButton) {
+      addToCart(addButton.dataset.add);
+      return;
+    }
+    if (detailButton) openMenuDetail(detailButton.dataset.detail);
   });
 
   document.querySelector("#popularRail").addEventListener("click", (event) => {
@@ -249,6 +267,27 @@ function bindCustomerEvents() {
     document.querySelector("#cartPanel").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
+  document.querySelector("#bottomOpenCart").addEventListener("click", () => {
+    document.querySelector("#cartPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  document.querySelector("#menuDetail").addEventListener("click", (event) => {
+    if (event.target.closest("[data-close-detail]")) closeMenuDetail();
+    const optionButton = event.target.closest("[data-option]");
+    if (optionButton) {
+      state.selectedOption = optionButton.dataset.option;
+      document.querySelectorAll("[data-option]").forEach((button) => {
+        button.classList.toggle("active", button === optionButton);
+      });
+    }
+  });
+
+  document.querySelector("#detailAdd").addEventListener("click", () => {
+    if (!state.selectedMenuId) return;
+    addToCart(state.selectedMenuId, state.selectedOption);
+    closeMenuDetail();
+  });
+
   document.querySelector("#placeOrder").addEventListener("click", placeOrder);
   document.querySelector("#newOrder").addEventListener("click", () => {
     stopReturnCountdown();
@@ -266,6 +305,45 @@ function showCompleteScreen() {
   document.querySelector(".menu-area").hidden = true;
   document.querySelector("#cartPanel").hidden = true;
   document.querySelector("#orderComplete").hidden = false;
+}
+
+function openMenuDetail(menuId) {
+  const item = state.menu.find((entry) => entry.id === menuId);
+  if (!item || item.soldOut) return;
+
+  state.selectedMenuId = menuId;
+  state.selectedOption = "기본";
+  const sheet = document.querySelector("#menuDetail");
+  const image = document.querySelector("#detailImage");
+  const badge = document.querySelector("#detailBadge");
+  const options = getMenuOptions(item);
+
+  sheet.hidden = false;
+  image.innerHTML = item.image
+    ? `<img src="${escapeAttr(item.image)}" alt="${escapeAttr(item.name)} 이미지" />`
+    : `<span>${escapeHtml(categoryLabels[item.category])}</span>`;
+  badge.hidden = !item.badge;
+  badge.textContent = item.badge || "";
+  document.querySelector("#detailTitle").textContent = item.name;
+  document.querySelector("#detailDesc").textContent = item.desc;
+  document.querySelector("#detailPrice").textContent = formatMoney(item.price);
+  document.querySelector("#detailOptions").innerHTML = options
+    .map(
+      (option, index) => `
+        <button class="${index === 0 ? "active" : ""}" type="button" data-option="${escapeAttr(option)}">
+          ${escapeHtml(option)}
+        </button>
+      `,
+    )
+    .join("");
+  document.body.classList.add("sheet-open");
+}
+
+function closeMenuDetail() {
+  document.querySelector("#menuDetail").hidden = true;
+  state.selectedMenuId = null;
+  state.selectedOption = "기본";
+  document.body.classList.remove("sheet-open");
 }
 
 function renderPopularRail() {
@@ -335,46 +413,59 @@ function renderCustomerMenu() {
             </div>
             <strong>${formatMoney(item.price)}</strong>
           </div>
-          <button class="add-button" type="button" data-add="${item.id}" ${item.soldOut ? "disabled" : ""}>
-            담기
-          </button>
+          <div class="menu-actions">
+            <button class="detail-button" type="button" data-detail="${item.id}" ${item.soldOut ? "disabled" : ""}>
+              옵션
+            </button>
+            <button class="add-button" type="button" data-add="${item.id}" ${item.soldOut ? "disabled" : ""}>
+              담기
+            </button>
+          </div>
         </article>
       `;
     })
     .join("");
 }
 
-function addToCart(menuId) {
+function addToCart(menuId, option = "기본") {
   const item = state.menu.find((entry) => entry.id === menuId);
   if (!item || item.soldOut) return;
 
-  const existing = state.cart.find((entry) => entry.id === menuId);
+  const lineId = makeCartLineId(menuId, option);
+  const existing = state.cart.find((entry) => entry.lineId === lineId);
   if (existing) existing.qty += 1;
-  else state.cart.push({ id: item.id, name: item.name, price: item.price, qty: 1 });
+  else state.cart.push({ lineId, id: item.id, name: item.name, price: item.price, option, qty: 1 });
   renderCart();
 }
 
-function changeCartQty(menuId, amount) {
-  const item = state.cart.find((entry) => entry.id === menuId);
+function changeCartQty(lineId, amount) {
+  const item = state.cart.find((entry) => entry.lineId === lineId || entry.id === lineId);
   if (!item) return;
   item.qty += amount;
-  if (item.qty <= 0) removeCartItem(menuId);
+  if (item.qty <= 0) removeCartItem(item.lineId || item.id);
   else renderCart();
 }
 
-function removeCartItem(menuId) {
-  state.cart = state.cart.filter((entry) => entry.id !== menuId);
+function removeCartItem(lineId) {
+  state.cart = state.cart.filter((entry) => (entry.lineId || entry.id) !== lineId);
   renderCart();
 }
 
 function renderCart() {
   const cartItems = document.querySelector("#cartItems");
   const cartCount = document.querySelector("#cartCount");
+  const bottomBar = document.querySelector("#bottomCartBar");
+  const totalQty = state.cart.reduce((sum, item) => sum + item.qty, 0);
   const total = state.cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 
   document.querySelector("#cartTotal").textContent = formatMoney(total);
   document.querySelector("#placeOrder").disabled = state.cart.length === 0;
-  cartCount.textContent = String(state.cart.reduce((sum, item) => sum + item.qty, 0));
+  cartCount.textContent = String(totalQty);
+  if (bottomBar) {
+    bottomBar.hidden = state.cart.length === 0;
+    document.querySelector("#bottomCartCount").textContent = `${totalQty}개 담김`;
+    document.querySelector("#bottomCartTotal").textContent = formatMoney(total);
+  }
   renderRecommendations();
 
   if (state.cart.length === 0) {
@@ -386,20 +477,24 @@ function renderCart() {
   cartItems.className = "cart-items";
   cartItems.innerHTML = state.cart
     .map(
-      (item) => `
+      (item) => {
+        const lineId = item.lineId || item.id;
+        const option = item.option && item.option !== "기본" ? `<small>${escapeHtml(item.option)}</small>` : "";
+        return `
         <div class="cart-item">
           <div>
-            <strong>${escapeHtml(item.name)}</strong>
+            <strong>${escapeHtml(item.name)}${option}</strong>
             <span>${formatMoney(item.price * item.qty)}</span>
           </div>
           <div class="cart-control">
-            <button type="button" data-minus="${item.id}" aria-label="${escapeAttr(item.name)} 수량 줄이기">−</button>
+            <button type="button" data-minus="${escapeAttr(lineId)}" aria-label="${escapeAttr(item.name)} 수량 줄이기">−</button>
             <span>${item.qty}</span>
-            <button type="button" data-plus="${item.id}" aria-label="${escapeAttr(item.name)} 수량 늘리기">+</button>
-            <button type="button" data-remove="${item.id}" aria-label="${escapeAttr(item.name)} 삭제">삭제</button>
+            <button type="button" data-plus="${escapeAttr(lineId)}" aria-label="${escapeAttr(item.name)} 수량 늘리기">+</button>
+            <button type="button" data-remove="${escapeAttr(lineId)}" aria-label="${escapeAttr(item.name)} 삭제">삭제</button>
           </div>
         </div>
-      `,
+      `;
+      },
     )
     .join("");
 }
@@ -444,7 +539,9 @@ function renderRecommendations() {
 }
 
 function placeOrder() {
-  if (state.cart.length === 0) return;
+  if (state.cart.length === 0 || state.orderLocked) return;
+  state.orderLocked = true;
+  document.querySelector("#placeOrder").disabled = true;
 
   const { store, table } = getTableInfo();
   const total = state.cart.reduce((sum, item) => sum + item.price * item.qty, 0);
@@ -475,6 +572,7 @@ function placeOrder() {
   document.querySelector("#completeMessage").textContent = `합계 ${formatMoney(total)} 주문이 접수되었습니다. 직원이 확인 후 준비합니다.`;
   document.querySelector("#orderNote").value = "";
   startReturnCountdown();
+  state.orderLocked = false;
 }
 
 function startReturnCountdown() {
@@ -522,7 +620,9 @@ function renderCurrentOrder() {
 
   const statusOrder = ["pending", "cooking", "served"];
   const currentIndex = Math.max(0, statusOrder.indexOf(order.status));
-  const itemText = order.items.map((item) => `${item.name} ${item.qty}개`).join(", ");
+  const itemText = order.items
+    .map((item) => `${item.name}${item.option && item.option !== "기본" ? `(${item.option})` : ""} ${item.qty}개`)
+    .join(", ");
 
   panel.hidden = false;
   document.querySelector("#currentOrderTitle").textContent = `주문번호 ${order.orderNo || "-"}`;
@@ -772,7 +872,10 @@ function orderMatchesFilter(order) {
 
 function renderOrderCard(order, column) {
   const itemList = order.items
-    .map((item) => `<li>${escapeHtml(item.name)} ${item.qty}개</li>`)
+    .map((item) => {
+      const option = item.option && item.option !== "기본" ? ` · ${item.option}` : "";
+      return `<li>${escapeHtml(item.name)}${escapeHtml(option)} ${item.qty}개</li>`;
+    })
     .join("");
   const minutes = minutesSince(order.createdAt);
   const waitClass = order.status === "pending" && minutes >= 10 ? "is-urgent" : "";
