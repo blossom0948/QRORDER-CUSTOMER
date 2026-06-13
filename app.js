@@ -1792,6 +1792,16 @@ function bindAdminFirebaseEvents() {
     }
   });
 
+  document.querySelector("#qrGeneratorForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!state.storeId) return;
+    const formData = new FormData(event.currentTarget);
+    const tableCount = Math.min(60, Math.max(1, Number(formData.get("qrTableCount")) || 10));
+    await generateMissingQrSessions(tableCount);
+  });
+
+  document.querySelector("#printAllQr").addEventListener("click", () => printAllQrCards());
+
   document.querySelector("#qrLinks").addEventListener("click", async (event) => {
     const button = event.target.closest("[data-copy-qr]");
     if (button) {
@@ -1988,6 +1998,53 @@ async function createStoreWithDefaults(storeName, tableCount) {
   await connectAdminStore(storeRef.id);
 }
 
+async function generateMissingQrSessions(tableCount) {
+  if (!state.storeId) return;
+  const status = document.querySelector("#qrGeneratorStatus");
+  if (status) status.textContent = "테이블 QR을 확인하고 생성 중입니다.";
+  state.firebaseStatus = "테이블 QR을 자동 생성 중입니다.";
+  renderFirebaseAdminPanel();
+
+  const existingTables = new Set(state.qrSessions.map((session) => String(session.tableNo).padStart(2, "0")));
+  const batch = writeBatch(db);
+  let created = 0;
+
+  for (let i = 1; i <= tableCount; i += 1) {
+    const tableNo = String(i).padStart(2, "0");
+    if (existingTables.has(tableNo)) continue;
+    const token = randomToken();
+    batch.set(doc(db, "stores", state.storeId, "qrSessions", token), {
+      tableNo,
+      active: true,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+    });
+    created += 1;
+  }
+
+  if (!created) {
+    const message = `이미 ${tableCount}개 테이블 QR이 준비되어 있습니다.`;
+    if (status) status.textContent = message;
+    state.firebaseStatus = message;
+    renderFirebaseAdminPanel();
+    return;
+  }
+
+  try {
+    await batch.commit();
+    const message = `${created}개 테이블 QR을 새로 생성했습니다.`;
+    if (status) status.textContent = message;
+    state.firebaseStatus = message;
+    renderFirebaseAdminPanel();
+  } catch (error) {
+    console.error(error);
+    const message = "QR 생성 권한이 막혔습니다. Firebase Rules 게시 상태를 확인해 주세요.";
+    if (status) status.textContent = message;
+    state.firebaseStatus = message;
+    renderFirebaseAdminPanel();
+  }
+}
+
 function renderFirebaseAdminPanel() {
   const title = document.querySelector("#firebaseStoreTitle");
   const isSignedIn = Boolean(state.user);
@@ -2009,6 +2066,10 @@ function renderFirebaseAdminPanel() {
   document.querySelector("#adminUserLabel").textContent = state.user?.displayName || state.user?.email || "";
   document.querySelector("#createStoreForm").hidden = !isSignedIn || hasStore;
   document.querySelector("#storeTools").hidden = !hasStore;
+  const qrTableInput = document.querySelector("[name='qrTableCount']");
+  if (qrTableInput && document.activeElement !== qrTableInput) {
+    qrTableInput.value = Math.max(10, state.qrSessions.length || Number(qrTableInput.value) || 10);
+  }
   renderQrLinks();
 }
 
@@ -2109,6 +2170,58 @@ function printQrCard(card) {
           window.addEventListener("load", () => {
             window.print();
           });
+        </script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+}
+
+function printAllQrCards() {
+  const cards = [...document.querySelectorAll(".qr-link-card")];
+  const qrItems = cards
+    .map((card) => {
+      const image = card.querySelector(".qr-preview img");
+      if (!image?.src) return "";
+      const tableLabel = card.dataset.tableLabel || "테이블 QR";
+      const url = card.querySelector(".qr-url")?.textContent || "";
+      return `
+        <section class="qr-print-card">
+          <h2>${escapeHtml(tableLabel)}</h2>
+          <img src="${escapeAttr(image.src)}" alt="${escapeAttr(tableLabel)} QR" />
+          <p>${escapeHtml(url)}</p>
+        </section>
+      `;
+    })
+    .filter(Boolean)
+    .join("");
+
+  if (!qrItems) return;
+  const printWindow = window.open("", "_blank", "width=900,height=720");
+  if (!printWindow) return;
+  printWindow.document.write(`
+    <!doctype html>
+    <html lang="ko">
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(state.storeName || "매장")} 전체 QR</title>
+        <style>
+          * { box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; margin: 0; padding: 18px; }
+          h1 { font-size: 22px; margin: 0 0 14px; }
+          .qr-print-grid { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .qr-print-card { border: 1px solid #222; display: grid; justify-items: center; min-height: 330px; padding: 16px; page-break-inside: avoid; text-align: center; }
+          .qr-print-card h2 { font-size: 22px; margin: 0 0 10px; }
+          .qr-print-card img { height: 220px; width: 220px; }
+          .qr-print-card p { color: #444; font-size: 10px; line-height: 1.35; overflow-wrap: anywhere; }
+          @media print { body { padding: 0; } .qr-print-grid { gap: 8px; } }
+        </style>
+      </head>
+      <body>
+        <h1>${escapeHtml(state.storeName || "매장")} 테이블 QR</h1>
+        <main class="qr-print-grid">${qrItems}</main>
+        <script>
+          window.addEventListener("load", () => window.print());
         </script>
       </body>
     </html>

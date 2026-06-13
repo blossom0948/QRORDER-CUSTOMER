@@ -2503,6 +2503,38 @@ body[data-page="admin"] .alert-panel h2 {
   display: block;
 }
 
+.qr-generator-form {
+  align-items: end;
+  background: #f8fbff;
+  border: 1px solid #dfe9f7;
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(150px, 1fr) auto auto;
+  padding: 12px;
+}
+
+.qr-generator-form label {
+  color: var(--muted);
+  display: grid;
+  font-size: 13px;
+  font-weight: 900;
+  gap: 7px;
+}
+
+.qr-generator-form input {
+  border: 1px solid #dfe4de;
+  border-radius: 8px;
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.qr-generator-status {
+  color: #526173;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .qr-links {
   display: grid;
   gap: 8px;
@@ -2695,6 +2727,10 @@ body[data-page="admin"] .menu-manage-row {
   }
 
   .store-create-form {
+    grid-template-columns: 1fr;
+  }
+
+  .qr-generator-form {
     grid-template-columns: 1fr;
   }
 
