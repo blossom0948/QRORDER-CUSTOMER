@@ -2362,6 +2362,129 @@ body[data-page="admin"] .alert-panel h2 {
   border-radius: 8px;
 }
 
+.firebase-admin-panel {
+  background: #fff;
+  border: 1px solid #ebe6de;
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.firebase-panel-head {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.firebase-panel-head p {
+  color: var(--brand-dark);
+  font-size: 13px;
+  font-weight: 900;
+  margin: 0;
+}
+
+.firebase-panel-head h2 {
+  font-size: 24px;
+  letter-spacing: 0;
+  margin: 4px 0 4px;
+}
+
+.firebase-panel-head small,
+.store-tools span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.admin-session {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.admin-session span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.admin-login-form,
+.store-create-form {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+}
+
+.admin-login-form label,
+.store-create-form label {
+  color: var(--muted);
+  display: grid;
+  font-size: 13px;
+  font-weight: 900;
+  gap: 7px;
+}
+
+.admin-login-form input,
+.store-create-form input {
+  border: 1px solid #ebe6de;
+  border-radius: 8px;
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.admin-login-form button,
+.store-create-form button {
+  align-self: end;
+}
+
+.store-tools {
+  border-top: 1px solid #ebe6de;
+  display: grid;
+  gap: 12px;
+  padding-top: 14px;
+}
+
+.store-tools strong,
+.store-tools span {
+  display: block;
+}
+
+.qr-links {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.qr-link-card {
+  background: #faf8f4;
+  border: 1px solid #ebe6de;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 11px;
+}
+
+.qr-link-card strong {
+  font-size: 15px;
+}
+
+.qr-link-card a {
+  color: var(--brand-dark);
+  font-size: 12px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.qr-link-card button {
+  background: #191919;
+  border: 0;
+  border-radius: 7px;
+  color: #fff;
+  font-weight: 900;
+  min-height: 34px;
+}
+
 .integration-panel summary {
   align-items: center;
   cursor: pointer;
@@ -2456,6 +2579,16 @@ body[data-page="admin"] .menu-manage-row {
 
   .integration-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-login-form,
+  .store-create-form {
+    grid-template-columns: 1fr;
+  }
+
+  .firebase-panel-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

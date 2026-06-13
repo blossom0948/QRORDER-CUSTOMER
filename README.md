@@ -26,5 +26,7 @@ https://blossom0948.github.io/QRORDER-CUSTOMER/
 - 주문 완료 후 5초 카운트다운 뒤 주문 화면 자동 복귀
 - 현재 주문의 접수, 조리중, 완료 진행상황 표시
 - 진행 중 주문에서 물, 앞접시, 냅킨 직원 호출
+- URL에 `store`와 `token`이 있으면 Firebase Firestore 실매장 모드로 동작
+- URL에 Firebase 파라미터가 없으면 기존 데모 모드로 동작
 
 사장님용 관리 화면은 별도 저장소 `QRORDER-ADMIN`에서 배포합니다.

@@ -1,3 +1,27 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getFirestore,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+  writeBatch,
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
 const MENU_KEY = "qrorder.menu.v3";
 const ORDER_KEY = "qrorder.orders.v3";
 const ACTIVE_ORDER_PREFIX = "qrorder.activeOrder.v3";
@@ -5,6 +29,21 @@ const LANG_KEY = "qrorder.language.v1";
 const ACCESS_KEY = "qrorder.access.v1";
 const PAYMENT_KEY = "qrorder.payment.v1";
 const SYNC_CHANNEL = "qrorder.sync.v1";
+const SELECTED_STORE_KEY = "qrorder.selectedStore.v1";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCRDZfNLzoruz2NhMhrfk4p3E_AxQDSrR0",
+  authDomain: "qrorder-5a729.firebaseapp.com",
+  projectId: "qrorder-5a729",
+  storageBucket: "qrorder-5a729.firebasestorage.app",
+  messagingSenderId: "972435696772",
+  appId: "1:972435696772:web:d3c47a275455539a1726d1",
+  measurementId: "G-9Y5NLC9D51",
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const db = getFirestore(firebaseApp);
 
 const realtimeChannel = "BroadcastChannel" in window ? new BroadcastChannel(SYNC_CHANNEL) : null;
 
@@ -567,6 +606,7 @@ const defaultMenu = [
 const state = {
   menu: loadMenu(),
   orders: loadOrders(),
+  qrSessions: [],
   cart: [],
   activeCategory: "all",
   searchQuery: "",
@@ -583,6 +623,16 @@ const state = {
   language: localStorage.getItem(LANG_KEY) || "ko",
   accessMode: localStorage.getItem(ACCESS_KEY) || "default",
   paymentMode: localStorage.getItem(PAYMENT_KEY) || "postpaid",
+  user: null,
+  storeId: "",
+  storeName: "",
+  customerToken: "",
+  customerQrValid: false,
+  firebaseMode: "demo",
+  firebaseStatus: "Firebase 연결 준비",
+  unsubscribers: [],
+  customerOrderUnsubscribe: null,
+  menuSaveTimers: new Map(),
 };
 
 function formatMoney(value) {
@@ -642,14 +692,140 @@ function readJson(key) {
 function getTableInfo() {
   const params = new URLSearchParams(window.location.search);
   return {
-    store: params.get("store") || "고깃집 온기",
+    store: params.get("store") || "",
     table: params.get("table") || "05",
+    token: params.get("token") || "",
   };
 }
 
 function activeOrderKey() {
   const { store, table } = getTableInfo();
-  return `${ACTIVE_ORDER_PREFIX}:${store}:${table}`;
+  return `${ACTIVE_ORDER_PREFIX}:${store || "demo"}:${table}`;
+}
+
+function storesCollection() {
+  return collection(db, "stores");
+}
+
+function storeDoc(storeId = state.storeId) {
+  return doc(db, "stores", storeId);
+}
+
+function menusCollection(storeId = state.storeId) {
+  return collection(db, "stores", storeId, "menus");
+}
+
+function menuDoc(menuId, storeId = state.storeId) {
+  return doc(db, "stores", storeId, "menus", menuId);
+}
+
+function ordersCollection(storeId = state.storeId) {
+  return collection(db, "stores", storeId, "orders");
+}
+
+function orderDoc(orderId, storeId = state.storeId) {
+  return doc(db, "stores", storeId, "orders", orderId);
+}
+
+function qrSessionsCollection(storeId = state.storeId) {
+  return collection(db, "stores", storeId, "qrSessions");
+}
+
+function qrSessionDoc(token, storeId = state.storeId) {
+  return doc(db, "stores", storeId, "qrSessions", token);
+}
+
+function toDate(value) {
+  if (!value) return new Date();
+  if (value instanceof Date) return value;
+  if (typeof value.toDate === "function") return value.toDate();
+  return new Date(value);
+}
+
+function fromFirestoreMenu(snapshot, index = 0) {
+  const data = snapshot.data();
+  const item = {
+    id: snapshot.id,
+    category: data.category || "main",
+    name: data.name || "새 메뉴",
+    desc: data.desc || data.description || "",
+    price: Number(data.price) || 0,
+    image: data.image || "",
+    badge: data.badge || "",
+    options: Array.isArray(data.options) ? data.options : [],
+    soldOut: Boolean(data.soldOut ?? data.sold_out),
+    sortOrder: Number(data.sortOrder ?? data.sort_order ?? index),
+    translations: data.translations || null,
+  };
+  item.translations = item.translations || buildMenuTranslations(item);
+  return item;
+}
+
+function toFirestoreMenu(item, index = 0) {
+  return {
+    category: item.category || "main",
+    name: item.name || "새 메뉴",
+    desc: item.desc || "",
+    price: Number(item.price) || 0,
+    image: item.image || "",
+    badge: item.badge || "",
+    options: getMenuOptions(item),
+    soldOut: Boolean(item.soldOut),
+    sortOrder: Number(item.sortOrder ?? index),
+    translations: item.translations || buildMenuTranslations(item),
+    updatedAt: new Date(),
+  };
+}
+
+function fromFirestoreOrder(snapshot) {
+  const data = snapshot.data();
+  return {
+    id: snapshot.id,
+    ...data,
+    table: data.table || data.tableNo || "05",
+    tableNo: data.tableNo || data.table || "05",
+    items: Array.isArray(data.items) ? data.items : [],
+    total: Number(data.total) || 0,
+    status: data.status || "pending",
+    createdAt: toDate(data.createdAt),
+  };
+}
+
+function toFirestoreOrder(order) {
+  return {
+    ...order,
+    tableNo: String(order.tableNo || order.table || "05"),
+    table: String(order.table || order.tableNo || "05"),
+    createdAt: order.createdAt || new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+function customerBaseUrl() {
+  if (["localhost", "127.0.0.1"].includes(location.hostname)) {
+    return new URL("index.html", location.href).toString();
+  }
+  return "https://blossom0948.github.io/QRORDER-CUSTOMER/";
+}
+
+function qrUrlFor(session) {
+  const url = new URL(customerBaseUrl());
+  url.searchParams.set("store", state.storeId);
+  url.searchParams.set("table", session.tableNo);
+  url.searchParams.set("token", session.token);
+  return url.toString();
+}
+
+function randomToken() {
+  if (window.crypto?.randomUUID) return `${crypto.randomUUID()}${crypto.randomUUID()}`.replaceAll("-", "");
+  return `${Date.now()}${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+}
+
+function clearFirebaseListeners() {
+  state.unsubscribers.forEach((unsubscribe) => unsubscribe());
+  state.unsubscribers = [];
+  if (state.customerOrderUnsubscribe) state.customerOrderUnsubscribe();
+  state.customerOrderUnsubscribe = null;
 }
 
 function getMenuOptions(item) {
@@ -785,26 +961,33 @@ function pageType() {
 }
 
 function initCustomer() {
-  const { store, table } = getTableInfo();
-  document.querySelector("#storeName").textContent = store;
+  const { store, table, token } = getTableInfo();
+  state.storeId = store;
+  state.customerToken = token;
+  state.firebaseMode = store && token ? "customer" : "demo";
+
+  document.querySelector("#storeName").textContent = "고깃집 온기";
   document.querySelector("#tableName").textContent = tr("tableLabel", { table: Number(table) || table });
 
   bindCustomerEvents();
   bindRealtimeSync();
-  window.addEventListener("storage", (event) => {
-    if (event.key === MENU_KEY) {
-      state.menu = loadMenu();
-      renderCustomerMenu();
-      renderPopularRail();
-      renderCart();
-    }
-    if (event.key === ORDER_KEY) {
-      state.orders = loadOrders();
-      renderCurrentOrder();
-    }
-  });
-  watchMenuChanges();
-  watchOrderChanges();
+  if (state.firebaseMode === "customer") initCustomerFirebase();
+  else {
+    window.addEventListener("storage", (event) => {
+      if (event.key === MENU_KEY) {
+        state.menu = loadMenu();
+        renderCustomerMenu();
+        renderPopularRail();
+        renderCart();
+      }
+      if (event.key === ORDER_KEY) {
+        state.orders = loadOrders();
+        renderCurrentOrder();
+      }
+    });
+    watchMenuChanges();
+    watchOrderChanges();
+  }
   renderCustomerMenu();
   renderPopularRail();
   renderCart();
@@ -813,6 +996,66 @@ function initCustomer() {
   applyLanguage();
   applyAccessMode();
   applyPaymentMode();
+}
+
+async function initCustomerFirebase() {
+  try {
+    const { store, table, token } = getTableInfo();
+    const storeSnapshot = await getDoc(storeDoc(store));
+    if (!storeSnapshot.exists()) throw new Error("매장을 찾지 못했습니다.");
+
+    state.storeName = storeSnapshot.data().name || "매장";
+    document.querySelector("#storeName").textContent = state.storeName;
+
+    const sessionSnapshot = await getDoc(qrSessionDoc(token, store));
+    const session = sessionSnapshot.exists() ? sessionSnapshot.data() : null;
+    state.customerQrValid =
+      Boolean(session?.active) &&
+      String(session.tableNo) === String(table) &&
+      (!session.expiresAt || toDate(session.expiresAt) > new Date());
+
+    if (!state.customerQrValid) {
+      state.firebaseStatus = "QR 세션이 유효하지 않습니다.";
+      document.querySelector("#placeOrder").disabled = true;
+      renderSecurityPanel();
+      return;
+    }
+
+    state.firebaseStatus = "Firebase 실시간 연결";
+    const menuQuery = query(menusCollection(store), orderBy("sortOrder"));
+    state.unsubscribers.push(
+      onSnapshot(menuQuery, (snapshot) => {
+        state.menu = snapshot.docs.map((entry, index) => fromFirestoreMenu(entry, index));
+        if (state.menu.length === 0) state.menu = structuredClone(defaultMenu);
+        renderCustomerMenu();
+        renderPopularRail();
+        renderCart();
+      }),
+    );
+
+    const activeId = localStorage.getItem(activeOrderKey());
+    if (activeId) watchCustomerActiveOrder(activeId, store);
+    renderSecurityPanel();
+  } catch (error) {
+    console.error(error);
+    state.firebaseStatus = error.message || "Firebase 연결 실패";
+    state.customerQrValid = false;
+    renderSecurityPanel();
+  }
+}
+
+function watchCustomerActiveOrder(orderId, storeId = state.storeId) {
+  if (state.customerOrderUnsubscribe) state.customerOrderUnsubscribe();
+  state.customerOrderUnsubscribe = onSnapshot(orderDoc(orderId, storeId), (snapshot) => {
+    if (!snapshot.exists()) {
+      state.orders = [];
+      localStorage.removeItem(activeOrderKey());
+      renderCurrentOrder();
+      return;
+    }
+    state.orders = [fromFirestoreOrder(snapshot)];
+    renderCurrentOrder();
+  });
 }
 
 function bindRealtimeSync() {
@@ -1065,13 +1308,13 @@ function renderSecurityPanel() {
   const params = new URLSearchParams(window.location.search);
   const token = params.get("token") || params.get("qr");
   const { table } = getTableInfo();
-  const verified = Boolean(token && token.length >= 6);
+  const verified = state.firebaseMode === "customer" ? state.customerQrValid : Boolean(token && token.length >= 6);
   panel.innerHTML = `
     <div>
       <strong>${verified ? t("securityVerifiedTitle") : t("securityDemoTitle")}</strong>
-      <span>${Number(table) || table} · ${verified ? t("tokenVerified") : t("tokenRecommended")}</span>
+      <span>${Number(table) || table} · ${verified ? t("tokenVerified") : state.firebaseStatus || t("tokenRecommended")}</span>
     </div>
-    <small>${realtimeChannel ? t("realtimeOn") : t("storageSync")}</small>
+    <small>${state.firebaseMode === "customer" ? "Firebase Firestore" : realtimeChannel ? t("realtimeOn") : t("storageSync")}</small>
   `;
   panel.classList.toggle("verified", verified);
 }
@@ -1314,20 +1557,27 @@ function renderRecommendations() {
   `;
 }
 
-function placeOrder() {
+async function placeOrder() {
   if (state.cart.length === 0 || state.orderLocked) return;
+  if (state.firebaseMode === "customer" && !state.customerQrValid) {
+    window.alert("QR 세션이 유효하지 않습니다. 직원에게 문의해 주세요.");
+    return;
+  }
   state.orderLocked = true;
   document.querySelector("#placeOrder").disabled = true;
 
-  const { store, table } = getTableInfo();
+  const { store, table, token } = getTableInfo();
   const total = state.cart.reduce((sum, item) => sum + item.price * item.qty, 0);
   const note = document.querySelector("#orderNote").value.trim();
   const orderNo = String(Date.now()).slice(-6);
   const order = {
     id: makeId(),
     orderNo,
-    store,
+    store: state.storeName || store || "고깃집 온기",
+    storeId: store || state.storeId || "demo",
     table,
+    tableNo: table,
+    qrToken: token || "",
     items: state.cart.map((item) => ({ ...item })),
     total,
     note,
@@ -1337,8 +1587,21 @@ function placeOrder() {
     createdAt: new Date(),
   };
 
-  state.orders.unshift(order);
-  saveOrders();
+  try {
+    if (state.firebaseMode === "customer") {
+      await setDoc(orderDoc(order.id, store), toFirestoreOrder(order));
+      watchCustomerActiveOrder(order.id, store);
+    } else {
+      state.orders.unshift(order);
+      saveOrders();
+    }
+  } catch (error) {
+    console.error(error);
+    window.alert(error.message || "주문을 저장하지 못했습니다.");
+    state.orderLocked = false;
+    renderCart();
+    return;
+  }
   localStorage.setItem(activeOrderKey(), order.id);
   state.cart = [];
   renderCart();
@@ -1422,14 +1685,18 @@ function renderCurrentOrder() {
   });
 }
 
-function requestService(serviceName) {
-  const { store, table } = getTableInfo();
+async function requestService(serviceName) {
+  const { store, table, token } = getTableInfo();
+  if (state.firebaseMode === "customer" && !state.customerQrValid) return;
   const orderNo = String(Date.now()).slice(-6);
   const requestOrder = {
     id: makeId(),
     orderNo,
-    store,
+    store: state.storeName || store || "고깃집 온기",
+    storeId: store || state.storeId || "demo",
     table,
+    tableNo: table,
+    qrToken: token || "",
     items: [{ id: `service-${serviceName}`, name: `${serviceName} 요청`, price: 0, qty: 1 }],
     total: 0,
     note: `${serviceName} 부탁드립니다.`,
@@ -1438,8 +1705,11 @@ function requestService(serviceName) {
     createdAt: new Date(),
   };
 
-  state.orders.unshift(requestOrder);
-  saveOrders();
+  if (state.firebaseMode === "customer") await setDoc(orderDoc(requestOrder.id, store), toFirestoreOrder(requestOrder));
+  else {
+    state.orders.unshift(requestOrder);
+    saveOrders();
+  }
 
   const notice = document.querySelector("#serviceNotice");
   if (notice) {
@@ -1454,9 +1724,234 @@ function requestService(serviceName) {
 function initAdmin() {
   bindAdminEvents();
   bindRealtimeSync();
+  bindAdminFirebaseEvents();
   syncKnownPendingOrders();
   renderAdmin();
-  window.setInterval(refreshOrders, 1200);
+  renderFirebaseAdminPanel();
+  onAuthStateChanged(auth, handleAdminAuthChange);
+  window.setInterval(() => {
+    if (state.firebaseMode !== "admin") refreshOrders();
+  }, 1200);
+}
+
+function bindAdminFirebaseEvents() {
+  document.querySelector("#adminLoginForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get("email") || "").trim();
+    const password = String(formData.get("password") || "");
+    if (!email || !password) return;
+
+    state.firebaseStatus = "로그인 중입니다.";
+    renderFirebaseAdminPanel();
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      event.currentTarget.reset();
+    } catch (error) {
+      state.firebaseStatus = "로그인 실패: 이메일/비밀번호 또는 admins 권한을 확인하세요.";
+      renderFirebaseAdminPanel();
+      console.error(error);
+    }
+  });
+
+  document.querySelector("#adminLogout").addEventListener("click", () => signOut(auth));
+
+  document.querySelector("#createStoreForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const storeName = String(formData.get("storeName") || "").trim();
+    const tableCount = Math.min(30, Math.max(1, Number(formData.get("tableCount")) || 10));
+    if (!storeName) return;
+    await createStoreWithDefaults(storeName, tableCount);
+    event.currentTarget.reset();
+  });
+
+  document.querySelector("#qrLinks").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-copy-qr]");
+    if (!button) return;
+    await navigator.clipboard?.writeText(button.dataset.copyQr);
+    button.textContent = "복사됨";
+    window.setTimeout(() => {
+      button.textContent = "링크 복사";
+    }, 1400);
+  });
+}
+
+async function handleAdminAuthChange(user) {
+  state.user = user;
+  clearFirebaseListeners();
+  if (!user) {
+    state.firebaseMode = "demo";
+    state.storeId = "";
+    state.storeName = "";
+    state.qrSessions = [];
+    state.firebaseStatus = "로그인하면 Firebase 매장 데이터와 실시간 주문이 연결됩니다.";
+    state.menu = loadMenu();
+    state.orders = loadOrders();
+    renderAdmin();
+    renderFirebaseAdminPanel();
+    return;
+  }
+
+  state.firebaseStatus = "사장님 권한 확인 중입니다.";
+  renderFirebaseAdminPanel();
+  try {
+    const adminSnapshot = await getDoc(doc(db, "admins", user.uid));
+    if (!adminSnapshot.exists()) {
+      state.firebaseStatus = "admins 문서가 없습니다. Firebase 콘솔에서 admins/{UID} role owner를 확인하세요.";
+      renderFirebaseAdminPanel();
+      return;
+    }
+    await loadAdminStores();
+  } catch (error) {
+    console.error(error);
+    state.firebaseStatus = error.message || "Firebase 권한 확인 실패";
+    renderFirebaseAdminPanel();
+  }
+}
+
+async function loadAdminStores() {
+  if (!state.user) return;
+  const storesQuery = query(storesCollection(), where("ownerUid", "==", state.user.uid));
+  const snapshot = await getDocs(storesQuery);
+  const stores = snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+  if (stores.length === 0) {
+    state.firebaseMode = "admin";
+    state.storeId = "";
+    state.storeName = "";
+    state.menu = [];
+    state.orders = [];
+    state.qrSessions = [];
+    state.firebaseStatus = "아직 매장이 없습니다. 아래에서 매장을 만들면 메뉴와 QR이 자동 생성됩니다.";
+    renderAdmin();
+    renderFirebaseAdminPanel();
+    return;
+  }
+
+  const selected = localStorage.getItem(SELECTED_STORE_KEY);
+  const store = stores.find((entry) => entry.id === selected) || stores[0];
+  await connectAdminStore(store.id);
+}
+
+async function connectAdminStore(storeId) {
+  clearFirebaseListeners();
+  state.firebaseMode = "admin";
+  state.storeId = storeId;
+  localStorage.setItem(SELECTED_STORE_KEY, storeId);
+
+  state.unsubscribers.push(
+    onSnapshot(storeDoc(storeId), (snapshot) => {
+      const store = snapshot.data() || {};
+      state.storeName = store.name || "매장";
+      state.firebaseStatus = `${state.storeName} Firebase 실시간 연결됨`;
+      renderFirebaseAdminPanel();
+    }),
+  );
+
+  state.unsubscribers.push(
+    onSnapshot(query(menusCollection(storeId), orderBy("sortOrder")), (snapshot) => {
+      state.menu = snapshot.docs.map((entry, index) => fromFirestoreMenu(entry, index));
+      renderMenuManager();
+      renderMetrics();
+      renderSystemStatus();
+    }),
+  );
+
+  state.unsubscribers.push(
+    onSnapshot(ordersCollection(storeId), (snapshot) => {
+      const newOrders = snapshot.docs.map(fromFirestoreOrder).sort((a, b) => b.createdAt - a.createdAt);
+      const knownBefore = new Set(state.knownPendingIds);
+      state.orders = newOrders;
+      const fresh = state.orders.filter((order) => order.status === "pending" && !knownBefore.has(order.id));
+      if (fresh.length) notifyNewOrders(fresh);
+      syncKnownPendingOrders();
+      renderAdmin();
+    }),
+  );
+
+  state.unsubscribers.push(
+    onSnapshot(qrSessionsCollection(storeId), (snapshot) => {
+      state.qrSessions = snapshot.docs
+        .map((entry) => ({ token: entry.id, ...entry.data() }))
+        .sort((a, b) => String(a.tableNo).localeCompare(String(b.tableNo), "ko", { numeric: true }));
+      renderFirebaseAdminPanel();
+      renderSystemStatus();
+    }),
+  );
+}
+
+async function createStoreWithDefaults(storeName, tableCount) {
+  if (!state.user) return;
+  state.firebaseStatus = "매장과 기본 메뉴, QR을 생성 중입니다.";
+  renderFirebaseAdminPanel();
+
+  const storeRef = doc(storesCollection());
+  const batch = writeBatch(db);
+  batch.set(storeRef, {
+    name: storeName,
+    ownerUid: state.user.uid,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  defaultMenu.forEach((item, index) => {
+    const menu = structuredClone(item);
+    menu.sortOrder = index + 1;
+    menu.translations = buildMenuTranslations(menu);
+    batch.set(doc(db, "stores", storeRef.id, "menus", menu.id), toFirestoreMenu(menu, index + 1));
+  });
+
+  for (let i = 1; i <= tableCount; i += 1) {
+    const tableNo = String(i).padStart(2, "0");
+    const token = randomToken();
+    batch.set(doc(db, "stores", storeRef.id, "qrSessions", token), {
+      tableNo,
+      active: true,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+    });
+  }
+
+  await batch.commit();
+  await connectAdminStore(storeRef.id);
+}
+
+function renderFirebaseAdminPanel() {
+  const title = document.querySelector("#firebaseStoreTitle");
+  if (!title) return;
+  const isSignedIn = Boolean(state.user);
+  const hasStore = Boolean(state.storeId);
+
+  title.textContent = hasStore ? state.storeName || "매장 연결됨" : isSignedIn ? "매장을 만들어 주세요" : "로그인 후 매장을 연결하세요";
+  document.querySelector("#firebaseStatus").textContent = state.firebaseStatus;
+  document.querySelector("#adminLoginForm").hidden = isSignedIn;
+  document.querySelector("#adminSession").hidden = !isSignedIn;
+  document.querySelector("#adminUserLabel").textContent = state.user?.email || "";
+  document.querySelector("#createStoreForm").hidden = !isSignedIn || hasStore;
+  document.querySelector("#storeTools").hidden = !hasStore;
+  renderQrLinks();
+}
+
+function renderQrLinks() {
+  const box = document.querySelector("#qrLinks");
+  if (!box) return;
+  if (!state.qrSessions.length) {
+    box.innerHTML = '<div class="empty-column">QR 링크 없음</div>';
+    return;
+  }
+
+  box.innerHTML = state.qrSessions
+    .map((session) => {
+      const url = qrUrlFor(session);
+      return `
+        <article class="qr-link-card">
+          <strong>${Number(session.tableNo) || session.tableNo}번 테이블</strong>
+          <a href="${escapeAttr(url)}" target="_blank" rel="noreferrer">${escapeHtml(url)}</a>
+          <button type="button" data-copy-qr="${escapeAttr(url)}">링크 복사</button>
+        </article>
+      `;
+    })
+    .join("");
 }
 
 function bindAdminEvents() {
@@ -1604,8 +2099,8 @@ function renderSystemStatus() {
     second: "2-digit",
   }).format(new Date());
 
-  realtime.textContent = realtimeChannel ? "탭 간 실시간 ON" : "저장소 폴링";
-  document.querySelector("#securityStatus").textContent = "테이블 토큰 권장";
+  realtime.textContent = state.firebaseMode === "admin" && state.storeId ? "Firebase Firestore" : realtimeChannel ? "탭 간 실시간 ON" : "저장소 폴링";
+  document.querySelector("#securityStatus").textContent = state.firebaseMode === "admin" && state.storeId ? `${state.qrSessions.length}개 QR` : "테이블 토큰 권장";
   document.querySelector("#imageStatus").textContent = `${withImages}/${state.menu.length}개`;
   document.querySelector("#paymentStatus").textContent = "선불/후불 준비";
   document.querySelector("#systemSyncTime").textContent = `${time} 기준 · 대기 ${pending}건 · 품절 ${soldOut}개`;
@@ -1718,11 +2213,18 @@ function moveOrder(orderId) {
   const order = state.orders.find((entry) => entry.id === orderId);
   if (!order) return;
 
+  const previousStatus = order.status;
   if (order.status === "pending") order.status = "cooking";
   else if (order.status === "cooking") order.status = "served";
   else state.orders = state.orders.filter((entry) => entry.id !== orderId);
 
-  saveOrders();
+  if (state.firebaseMode === "admin" && state.storeId) {
+    if (previousStatus === "served") {
+      deleteDoc(orderDoc(orderId)).catch(console.error);
+    } else {
+      updateDoc(orderDoc(orderId), { status: order.status, updatedAt: new Date() }).catch(console.error);
+    }
+  } else saveOrders();
   renderAdmin();
 }
 
@@ -1794,11 +2296,23 @@ function updateMenuField(id, field, value, shouldRender = true) {
   else item[field] = value;
   if (["name", "desc", "badge", "options", "category"].includes(field)) item.translations = buildMenuTranslations(item);
   saveMenu();
+  queueMenuPersist(item);
   if (pageType() === "admin") {
     renderMetrics();
     renderSystemStatus();
   }
   if (shouldRender) renderMenuManager();
+}
+
+function queueMenuPersist(item) {
+  if (state.firebaseMode !== "admin" || !state.storeId) return;
+  window.clearTimeout(state.menuSaveTimers.get(item.id));
+  state.menuSaveTimers.set(
+    item.id,
+    window.setTimeout(() => {
+      setDoc(menuDoc(item.id), toFirestoreMenu(item, state.menu.indexOf(item) + 1), { merge: true }).catch(console.error);
+    }, 450),
+  );
 }
 
 async function updateMenuImageFromFile(id, file) {
@@ -1837,7 +2351,8 @@ async function addMenuItem(event) {
   };
   newItem.translations = buildMenuTranslations(newItem);
   state.menu.push(newItem);
-  saveMenu();
+  if (state.firebaseMode === "admin" && state.storeId) await setDoc(menuDoc(newItem.id), toFirestoreMenu(newItem, state.menu.length));
+  else saveMenu();
   form.reset();
   renderMenuManager();
   renderMetrics();
@@ -1849,7 +2364,8 @@ function deleteMenuItem(id) {
   if (!item) return;
   if (!confirm(`${item.name} 메뉴를 삭제할까요?`)) return;
   state.menu = state.menu.filter((entry) => entry.id !== id);
-  saveMenu();
+  if (state.firebaseMode === "admin" && state.storeId) deleteDoc(menuDoc(id)).catch(console.error);
+  else saveMenu();
   renderMenuManager();
   renderMetrics();
   renderSystemStatus();
@@ -1864,7 +2380,14 @@ function moveMenuItem(id, direction) {
 
   const [item] = state.menu.splice(index, 1);
   state.menu.splice(nextIndex, 0, item);
-  saveMenu();
+  state.menu.forEach((entry, entryIndex) => {
+    entry.sortOrder = entryIndex + 1;
+  });
+  if (state.firebaseMode === "admin" && state.storeId) {
+    const batch = writeBatch(db);
+    state.menu.forEach((entry) => batch.update(menuDoc(entry.id), { sortOrder: entry.sortOrder, updatedAt: new Date() }));
+    batch.commit().catch(console.error);
+  } else saveMenu();
   renderMenuManager();
   renderSystemStatus();
 }
@@ -1892,7 +2415,7 @@ function imageFileToDataUrl(file) {
   });
 }
 
-function seedOrder() {
+async function seedOrder() {
   const available = state.menu.filter((item) => !item.soldOut);
   if (available.length === 0) return;
   const selected = available.slice(0, 2).map((item, index) => ({
@@ -1905,8 +2428,11 @@ function seedOrder() {
 
   const order = {
     id: makeId(),
-    store: "고깃집 온기",
+    store: state.storeName || "고깃집 온기",
+    storeId: state.storeId || "demo",
     table: "05",
+    tableNo: "05",
+    qrToken: state.qrSessions[0]?.token || "",
     items: selected,
     total,
     note: "앞접시 하나 더 부탁드립니다.",
@@ -1915,8 +2441,11 @@ function seedOrder() {
     createdAt: new Date(),
   };
 
-  state.orders.unshift(order);
-  saveOrders();
+  if (state.firebaseMode === "admin" && state.storeId) await setDoc(orderDoc(order.id), toFirestoreOrder(order));
+  else {
+    state.orders.unshift(order);
+    saveOrders();
+  }
   notifyNewOrders([order]);
   syncKnownPendingOrders();
   renderAdmin();
