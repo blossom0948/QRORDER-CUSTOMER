@@ -97,25 +97,25 @@ const translations = {
     soldOut: "품절",
     quickAdd: "빠른 담기",
     noSearchResult: "검색 결과가 없습니다.",
-    paymentMode: "결제 방식",
+    paymentMode: "결제 안내",
     postpaid: "후불",
-    prepaidReady: "선불 준비",
-    postpaidHint: "후불 대면 결제 모드입니다. 식사 후 카운터나 직원에게 결제합니다.",
-    prepaidHint: "선불 결제 연결 준비 모드입니다. 실제 PG 키를 연결하면 결제 승인 후 주문이 접수됩니다.",
+    prepaidReady: "후불",
+    postpaidHint: "식사 후 카운터 또는 직원에게 결제합니다.",
+    prepaidHint: "식사 후 카운터 또는 직원에게 결제합니다.",
     total: "합계",
     orderCompleteEyebrow: "주문 접수 완료",
     completeDefault: "주문이 전송되었습니다.",
     completeTitle: "{table}번 테이블 주문 접수",
     completePostpaid: "합계 {total} 주문이 접수되었습니다. 직원이 확인 후 준비합니다.",
-    completePrepaid: "합계 {total} 주문이 접수되었습니다. 실제 운영에서는 결제 승인 후 주방으로 전송됩니다.",
+    completePrepaid: "합계 {total} 주문이 접수되었습니다. 식사 후 매장에서 결제합니다.",
     countdown: "{seconds}초 후 주문 화면으로 돌아갑니다.",
     newOrder: "추가 주문하기",
     bottomCount: "{count}개 담김",
     policyBadge: "운영 안내",
-    policyTitle: "주문·결제·환불 안내",
+    policyTitle: "주문 안내",
     policyBody: "주문 전 장바구니와 옵션을 확인해 주세요. 조리 시작 전에는 직원에게 취소를 요청할 수 있고, 조리 시작 후에는 매장 정책에 따라 처리됩니다.",
     policyPostpaid: "식사 후 카운터 또는 직원에게 결제합니다.",
-    policyPrepaid: "PG 연결 시 결제 승인 후 주문이 전송됩니다.",
+    policyPrepaid: "식사 후 매장에서 결제합니다.",
     privacy: "개인정보",
     policyPrivacy: "이 데모는 테이블 번호와 주문 내역만 브라우저 저장소에 보관합니다.",
     securityVerifiedTitle: "QR 세션 확인됨",
@@ -164,25 +164,25 @@ const translations = {
     soldOut: "Sold out",
     quickAdd: "Quick add",
     noSearchResult: "No menu found.",
-    paymentMode: "Payment",
+    paymentMode: "Payment guide",
     postpaid: "Pay later",
-    prepaidReady: "Prepay ready",
-    postpaidHint: "Pay later mode. Pay at the counter or to staff after your meal.",
-    prepaidHint: "Prepay-ready mode. With a PG key connected, the order is sent after payment approval.",
+    prepaidReady: "Pay later",
+    postpaidHint: "Pay at the counter or to staff after your meal.",
+    prepaidHint: "Pay at the counter or to staff after your meal.",
     total: "Total",
     orderCompleteEyebrow: "Order received",
     completeDefault: "Your order has been sent.",
     completeTitle: "Table {table} order received",
     completePostpaid: "Your {total} order has been received. Staff will confirm and prepare it.",
-    completePrepaid: "Your {total} order has been received. In production, it is sent to the kitchen after payment approval.",
+    completePrepaid: "Your {total} order has been received. Please pay at the store after your meal.",
     countdown: "Returning to the menu in {seconds}s.",
     newOrder: "Order more",
     bottomCount: "{count} items",
     policyBadge: "Store policy",
-    policyTitle: "Order, Payment, Refund Policy",
+    policyTitle: "Order Guide",
     policyBody: "Please check your cart and options before ordering. You can ask staff to cancel before cooking starts. After cooking starts, the store policy applies.",
     policyPostpaid: "Pay at the counter or to staff after your meal.",
-    policyPrepaid: "With PG connected, the order is sent after payment approval.",
+    policyPrepaid: "Please pay at the store after your meal.",
     privacy: "Privacy",
     policyPrivacy: "This demo stores only table number and order history in browser storage.",
     securityVerifiedTitle: "QR session verified",
@@ -231,25 +231,25 @@ const translations = {
     soldOut: "売切",
     quickAdd: "すぐ追加",
     noSearchResult: "検索結果がありません。",
-    paymentMode: "支払い方法",
+    paymentMode: "支払い案内",
     postpaid: "後払い",
-    prepaidReady: "前払い準備",
-    postpaidHint: "後払いモードです。食後にカウンターまたはスタッフへお支払いください。",
-    prepaidHint: "前払い接続準備モードです。PGキー接続後、決済承認後に注文が送信されます。",
+    prepaidReady: "後払い",
+    postpaidHint: "食後にカウンターまたはスタッフへお支払いください。",
+    prepaidHint: "食後にカウンターまたはスタッフへお支払いください。",
     total: "合計",
     orderCompleteEyebrow: "注文受付完了",
     completeDefault: "注文が送信されました。",
     completeTitle: "{table}番テーブルの注文受付",
     completePostpaid: "合計{total}の注文を受け付けました。スタッフが確認後、準備します。",
-    completePrepaid: "合計{total}の注文を受け付けました。本番では決済承認後に厨房へ送信されます。",
+    completePrepaid: "合計{total}の注文を受け付けました。食後に店内でお支払いください。",
     countdown: "{seconds}秒後にメニューへ戻ります。",
     newOrder: "追加注文",
     bottomCount: "{count}点",
     policyBadge: "店舗案内",
-    policyTitle: "注文・支払い・返金案内",
+    policyTitle: "注文案内",
     policyBody: "注文前にカートとオプションをご確認ください。調理開始前はスタッフにキャンセルを依頼できます。調理開始後は店舗ポリシーに従います。",
     policyPostpaid: "食後にカウンターまたはスタッフへお支払いください。",
-    policyPrepaid: "PG接続時は決済承認後に注文が送信されます。",
+    policyPrepaid: "食後に店内でお支払いください。",
     privacy: "個人情報",
     policyPrivacy: "このデモはテーブル番号と注文履歴のみをブラウザ保存します。",
     securityVerifiedTitle: "QRセッション確認済み",
@@ -298,25 +298,25 @@ const translations = {
     soldOut: "售罄",
     quickAdd: "快速加入",
     noSearchResult: "没有搜索结果。",
-    paymentMode: "支付方式",
+    paymentMode: "付款说明",
     postpaid: "后付",
-    prepaidReady: "预付准备",
-    postpaidHint: "后付模式。用餐后请到柜台或向店员付款。",
-    prepaidHint: "预付连接准备模式。连接PG密钥后，付款批准后订单会发送。",
+    prepaidReady: "后付",
+    postpaidHint: "用餐后请到柜台或向店员付款。",
+    prepaidHint: "用餐后请到柜台或向店员付款。",
     total: "合计",
     orderCompleteEyebrow: "订单已接收",
     completeDefault: "订单已发送。",
     completeTitle: "{table}号桌订单已接收",
     completePostpaid: "已接收合计{total}的订单。店员确认后开始准备。",
-    completePrepaid: "已接收合计{total}的订单。正式运营时付款批准后会发送到厨房。",
+    completePrepaid: "已接收合计{total}的订单。用餐后请在店内付款。",
     countdown: "{seconds}秒后返回菜单。",
     newOrder: "继续点餐",
     bottomCount: "{count}件",
     policyBadge: "门店说明",
-    policyTitle: "订单、支付、退款说明",
+    policyTitle: "订单说明",
     policyBody: "下单前请确认购物车和选项。开始制作前可向店员申请取消；开始制作后按门店政策处理。",
     policyPostpaid: "用餐后请到柜台或向店员付款。",
-    policyPrepaid: "连接PG后，付款批准后订单会发送。",
+    policyPrepaid: "用餐后请在店内付款。",
     privacy: "隐私",
     policyPrivacy: "此演示仅在浏览器存储桌号和订单记录。",
     securityVerifiedTitle: "QR会话已验证",
@@ -992,6 +992,7 @@ function initCustomer() {
   state.storeId = store;
   state.customerToken = token;
   state.firebaseMode = store && token ? "customer" : "demo";
+  state.paymentMode = "postpaid";
 
   document.querySelector("#storeName").textContent = "고깃집 온기";
   document.querySelector("#tableName").textContent = tr("tableLabel", { table: Number(table) || table });
@@ -2154,17 +2155,29 @@ function printQrCard(card) {
         <meta charset="utf-8" />
         <title>${escapeHtml(tableLabel)} QR</title>
         <style>
-          body { align-items: center; display: grid; font-family: Arial, sans-serif; justify-items: center; margin: 0; min-height: 100vh; padding: 24px; text-align: center; }
-          h1 { font-size: 26px; margin: 0 0 16px; }
-          img { height: 260px; width: 260px; }
-          p { color: #444; font-size: 12px; overflow-wrap: anywhere; }
+          * { box-sizing: border-box; }
+          body { align-items: center; background: #f6f7f4; display: grid; font-family: Arial, sans-serif; justify-items: center; margin: 0; min-height: 100vh; padding: 22px; text-align: center; }
+          main { background: #fff; border: 2px solid #191919; border-radius: 18px; overflow: hidden; width: min(100%, 360px); }
+          header { background: #ff6f4d; color: #fff; padding: 18px 16px; }
+          small { display: block; font-size: 12px; font-weight: 800; letter-spacing: 1px; }
+          h1 { font-size: 34px; line-height: 1; margin: 6px 0 0; }
+          .body { display: grid; gap: 12px; justify-items: center; padding: 22px 20px 18px; }
+          img { height: 240px; width: 240px; }
+          strong { color: #191919; display: block; font-size: 18px; }
+          p { color: #555; font-size: 11px; line-height: 1.35; margin: 0; overflow-wrap: anywhere; }
         </style>
       </head>
       <body>
         <main>
-          <h1>${escapeHtml(tableLabel)}</h1>
-          <img src="${escapeAttr(image.src)}" alt="${escapeAttr(tableLabel)} QR" />
-          <p>${escapeHtml(url)}</p>
+          <header>
+            <small>${escapeHtml(state.storeName || "QRORDER")}</small>
+            <h1>${escapeHtml(tableLabel)}</h1>
+          </header>
+          <div class="body">
+            <strong>카메라로 비추고 주문하세요</strong>
+            <img src="${escapeAttr(image.src)}" alt="${escapeAttr(tableLabel)} QR" />
+            <p>${escapeHtml(url)}</p>
+          </div>
         </main>
         <script>
           window.addEventListener("load", () => {
@@ -2188,8 +2201,11 @@ function printAllQrCards() {
       return `
         <section class="qr-print-card">
           <h2>${escapeHtml(tableLabel)}</h2>
-          <img src="${escapeAttr(image.src)}" alt="${escapeAttr(tableLabel)} QR" />
-          <p>${escapeHtml(url)}</p>
+          <div>
+            <strong>카메라로 비추고 주문하세요</strong>
+            <img src="${escapeAttr(image.src)}" alt="${escapeAttr(tableLabel)} QR" />
+            <p>${escapeHtml(url)}</p>
+          </div>
         </section>
       `;
     })
@@ -2207,14 +2223,16 @@ function printAllQrCards() {
         <title>${escapeHtml(state.storeName || "매장")} 전체 QR</title>
         <style>
           * { box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; margin: 0; padding: 18px; }
-          h1 { font-size: 22px; margin: 0 0 14px; }
-          .qr-print-grid { display: grid; gap: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .qr-print-card { border: 1px solid #222; display: grid; justify-items: center; min-height: 330px; padding: 16px; page-break-inside: avoid; text-align: center; }
-          .qr-print-card h2 { font-size: 22px; margin: 0 0 10px; }
-          .qr-print-card img { height: 220px; width: 220px; }
-          .qr-print-card p { color: #444; font-size: 10px; line-height: 1.35; overflow-wrap: anywhere; }
-          @media print { body { padding: 0; } .qr-print-grid { gap: 8px; } }
+          body { background: #fff; font-family: Arial, sans-serif; margin: 0; padding: 16px; }
+          h1 { color: #191919; font-size: 20px; margin: 0 0 12px; }
+          .qr-print-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .qr-print-card { border: 2px solid #191919; border-radius: 14px; display: grid; min-height: 360px; overflow: hidden; page-break-inside: avoid; text-align: center; }
+          .qr-print-card h2 { background: #ff6f4d; color: #fff; font-size: 28px; margin: 0; padding: 15px 10px; }
+          .qr-print-card div { display: grid; gap: 9px; justify-items: center; padding: 14px; }
+          .qr-print-card strong { font-size: 17px; }
+          .qr-print-card img { height: 210px; width: 210px; }
+          .qr-print-card p { color: #555; font-size: 9px; line-height: 1.35; margin: 0; overflow-wrap: anywhere; }
+          @media print { body { padding: 0; } .qr-print-grid { gap: 7px; } .qr-print-card { border-radius: 0; } }
         </style>
       </head>
       <body>
@@ -2336,6 +2354,7 @@ function renderAdmin() {
 }
 
 function renderMetrics() {
+  if (!document.querySelector("#pendingCount")) return;
   document.querySelector("#pendingCount").textContent = countOrders("pending");
   document.querySelector("#cookingCount").textContent = countOrders("cooking");
   document.querySelector("#servedCount").textContent = countOrders("served");
@@ -2460,8 +2479,7 @@ function renderOrderCard(order, column) {
   const note = order.note ? `<p class="order-note-line">요청: ${escapeHtml(order.note)}</p>` : "";
   const orderNo = order.orderNo ? `<small>주문번호 ${escapeHtml(order.orderNo)}</small>` : "";
   const serviceBadge = order.service ? '<span class="service-badge">직원 호출</span>' : "";
-  const paymentBadge =
-    order.paymentMode === "prepaid" ? '<span class="payment-badge">선불 준비</span>' : '<span class="payment-badge">후불</span>';
+  const paymentBadge = '<span class="payment-badge">후불</span>';
 
   return `
     <article class="order-card ${order.status} ${waitClass}">

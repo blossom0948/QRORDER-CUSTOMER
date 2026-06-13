@@ -102,13 +102,9 @@
           <span data-i18n="request">요청사항</span>
           <textarea id="orderNote" rows="3" placeholder="예: 덜 맵게 해주세요" data-i18n-placeholder="requestPlaceholder"></textarea>
         </label>
-        <div class="payment-mode" aria-label="결제 방식">
-          <p data-i18n="paymentMode">결제 방식</p>
-          <div>
-            <button class="active" type="button" data-payment-mode="postpaid" data-i18n="postpaid">후불</button>
-            <button type="button" data-payment-mode="prepaid" data-i18n="prepaidReady">선불 준비</button>
-          </div>
-          <small id="paymentModeHint">후불 대면 결제 모드입니다. 식사 후 카운터나 직원에게 결제합니다.</small>
+        <div class="payment-mode pay-later-note" aria-label="결제 안내">
+          <p data-i18n="paymentMode">결제 안내</p>
+          <small id="paymentModeHint">식사 후 카운터 또는 직원에게 결제합니다.</small>
         </div>
         <div class="total-row">
           <span data-i18n="total">합계</span>
@@ -162,12 +158,11 @@
         <button class="sheet-close" type="button" data-close-policy aria-label="안내 닫기">×</button>
         <div>
           <span class="menu-badge" data-i18n="policyBadge">운영 안내</span>
-          <h2 id="policyTitle" data-i18n="policyTitle">주문·결제·환불 안내</h2>
+          <h2 id="policyTitle" data-i18n="policyTitle">주문 안내</h2>
           <p data-i18n="policyBody">주문 전 장바구니와 옵션을 확인해 주세요. 조리 시작 전에는 직원에게 취소를 요청할 수 있고, 조리 시작 후에는 매장 정책에 따라 처리됩니다.</p>
         </div>
         <ul class="policy-list">
           <li><strong data-i18n="postpaid">후불</strong><span data-i18n="policyPostpaid">식사 후 카운터 또는 직원에게 결제합니다.</span></li>
-          <li><strong data-i18n="prepaidReady">선불 준비</strong><span data-i18n="policyPrepaid">PG 연결 시 결제 승인 후 주문이 전송됩니다.</span></li>
           <li><strong data-i18n="privacy">개인정보</strong><span data-i18n="policyPrivacy">이 데모는 테이블 번호와 주문 내역만 브라우저 저장소에 보관합니다.</span></li>
         </ul>
       </div>
