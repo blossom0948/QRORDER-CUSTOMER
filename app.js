@@ -1,9 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import {
   getAuth,
+  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 import {
@@ -71,7 +73,7 @@ const translations = {
     orderReview: "주문 확인",
     request: "요청사항",
     requestPlaceholder: "예: 덜 맵게 해주세요",
-    orderNow: "주문하기",
+    orderNow: "후불 주문 접수",
     policy: "주문/환불 안내",
     languageReady: "한국어 메뉴 표시",
     defaultView: "기본 보기",
@@ -1609,8 +1611,8 @@ async function placeOrder() {
     items: state.cart.map((item) => ({ ...item })),
     total,
     note,
-    paymentMode: state.paymentMode,
-    paymentStatus: state.paymentMode === "prepaid" ? "payment-ready" : "pay-at-counter",
+    paymentMode: "postpaid",
+    paymentStatus: "pay-at-counter",
     status: "pending",
     createdAt: new Date(),
   };
@@ -1638,10 +1640,7 @@ async function placeOrder() {
   showCompleteScreen();
   document.querySelector("#completeTitle").textContent = tr("completeTitle", { table: Number(table) || table });
   document.querySelector("#completeMeta").textContent = `${t("orderNo")} ${orderNo}`;
-  document.querySelector("#completeMessage").textContent =
-    state.paymentMode === "prepaid"
-      ? tr("completePrepaid", { total: formatMoney(total) })
-      : tr("completePostpaid", { total: formatMoney(total) });
+  document.querySelector("#completeMessage").textContent = tr("completePostpaid", { total: formatMoney(total) });
   document.querySelector("#orderNote").value = "";
   startReturnCountdown();
   state.orderLocked = false;
@@ -1756,6 +1755,7 @@ function initAdmin() {
   syncKnownPendingOrders();
   renderAdmin();
   renderFirebaseAdminPanel();
+  handleAdminRedirectResult();
   onAuthStateChanged(auth, handleAdminAuthChange);
   window.setInterval(() => {
     if (state.firebaseMode !== "admin") refreshOrders();
@@ -1768,6 +1768,18 @@ function bindAdminFirebaseEvents() {
     renderFirebaseAdminPanel();
     try {
       await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      state.firebaseStatus = firebaseAuthMessage(error);
+      renderFirebaseAdminPanel();
+      console.error(error);
+    }
+  });
+
+  document.querySelector("#googleRedirectLogin").addEventListener("click", async () => {
+    state.firebaseStatus = "Google 로그인 페이지로 이동합니다.";
+    renderFirebaseAdminPanel();
+    try {
+      await signInWithRedirect(auth, googleProvider);
     } catch (error) {
       state.firebaseStatus = firebaseAuthMessage(error);
       renderFirebaseAdminPanel();
@@ -1822,6 +1834,20 @@ function bindAdminFirebaseEvents() {
   });
 }
 
+async function handleAdminRedirectResult() {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result?.user) {
+      state.firebaseStatus = "Google 로그인 완료. 매장을 불러오는 중입니다.";
+      renderFirebaseAdminPanel();
+    }
+  } catch (error) {
+    state.firebaseStatus = firebaseAuthMessage(error);
+    renderFirebaseAdminPanel();
+    console.error(error);
+  }
+}
+
 function firebaseAuthMessage(error) {
   const code = error?.code || "";
   if (code === "auth/operation-not-allowed") {
@@ -1829,6 +1855,9 @@ function firebaseAuthMessage(error) {
   }
   if (code === "auth/unauthorized-domain") {
     return "Firebase Authentication > Settings > Authorized domains에 blossom0948.github.io와 admin.blossom0948.cloud를 추가해 주세요.";
+  }
+  if (code === "auth/popup-blocked" || code === "auth/cancelled-popup-request") {
+    return "브라우저가 로그인 창을 막았습니다. 아래 '로그인이 안 되면 여기를 누르세요' 버튼을 사용해 주세요.";
   }
   if (code === "auth/popup-closed-by-user") {
     return "로그인 창이 닫혔습니다. Google로 시작하기를 다시 눌러 주세요.";

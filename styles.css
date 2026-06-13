@@ -1884,6 +1884,12 @@ body[data-page="admin"] [hidden] {
   width: 100%;
 }
 
+.login-card .button.secondary {
+  background: #fff;
+  border-color: #dfe4de;
+  color: #191919;
+}
+
 body[data-page="admin"] .admin-header {
   background: #fff;
   border-bottom: 1px solid #e1e5df;
