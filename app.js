@@ -1,6 +1,12 @@
 const MENU_KEY = "qrorder.menu.v3";
 const ORDER_KEY = "qrorder.orders.v3";
 const ACTIVE_ORDER_PREFIX = "qrorder.activeOrder.v3";
+const LANG_KEY = "qrorder.language.v1";
+const ACCESS_KEY = "qrorder.access.v1";
+const PAYMENT_KEY = "qrorder.payment.v1";
+const SYNC_CHANNEL = "qrorder.sync.v1";
+
+const realtimeChannel = "BroadcastChannel" in window ? new BroadcastChannel(SYNC_CHANNEL) : null;
 
 const formatter = new Intl.NumberFormat("ko-KR", {
   style: "currency",
@@ -13,6 +19,69 @@ const categoryLabels = {
   main: "메인",
   side: "사이드",
   drink: "음료",
+};
+
+const translations = {
+  ko: {
+    menu: "메뉴",
+    qrOrder: "QR 주문",
+    searchLabel: "메뉴 검색",
+    searchPlaceholder: "삼겹살, 찌개, 음료 검색",
+    add: "담기",
+    option: "옵션",
+    cart: "장바구니",
+    orderReview: "주문 확인",
+    request: "요청사항",
+    requestPlaceholder: "예: 덜 맵게 해주세요",
+    orderNow: "주문하기",
+    policy: "주문/환불 안내",
+    languageReady: "한국어 메뉴 표시",
+  },
+  en: {
+    menu: "Menu",
+    qrOrder: "QR order",
+    searchLabel: "Search menu",
+    searchPlaceholder: "Search pork, stew, drinks",
+    add: "Add",
+    option: "Options",
+    cart: "Cart",
+    orderReview: "Review order",
+    request: "Requests",
+    requestPlaceholder: "Ex: Less spicy, please",
+    orderNow: "Place order",
+    policy: "Order policy",
+    languageReady: "English menu mode",
+  },
+  ja: {
+    menu: "メニュー",
+    qrOrder: "QR注文",
+    searchLabel: "メニュー検索",
+    searchPlaceholder: "肉、鍋、ドリンクを検索",
+    add: "追加",
+    option: "オプション",
+    cart: "カート",
+    orderReview: "注文確認",
+    request: "リクエスト",
+    requestPlaceholder: "例: 辛さ控えめ",
+    orderNow: "注文する",
+    policy: "注文案内",
+    languageReady: "日本語メニューモード",
+  },
+  zh: {
+    menu: "菜单",
+    qrOrder: "扫码点餐",
+    searchLabel: "搜索菜单",
+    searchPlaceholder: "搜索烤肉、汤、饮料",
+    add: "加入",
+    option: "选项",
+    cart: "购物车",
+    orderReview: "确认订单",
+    request: "备注",
+    requestPlaceholder: "例: 少辣",
+    orderNow: "下单",
+    policy: "订单说明",
+    languageReady: "中文菜单模式",
+  },
 };
 
 const statusLabels = {
@@ -28,8 +97,9 @@ const defaultMenu = [
     name: "숙성 삼겹살 한판",
     desc: "초벌 숙성 삼겹살, 쌈 채소, 기본 찬",
     price: 17000,
-    image: "",
+    image: "https://images.unsplash.com/photo-1529692236671-f1f6cf9683ba?auto=format&fit=crop&w=640&q=80",
     badge: "인기",
+    options: ["기본", "덜 익힘", "바싹 익힘", "쌈 채소 추가"],
     soldOut: false,
   },
   {
@@ -38,8 +108,9 @@ const defaultMenu = [
     name: "차돌 된장찌개",
     desc: "고기 주문과 함께 많이 찾는 국물 메뉴",
     price: 8000,
-    image: "",
+    image: "https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=640&q=80",
     badge: "추천",
+    options: ["기본", "덜 맵게", "맵게", "공깃밥 추가"],
     soldOut: false,
   },
   {
@@ -48,8 +119,9 @@ const defaultMenu = [
     name: "치즈 계란찜",
     desc: "부드러운 계란찜에 치즈를 올린 사이드",
     price: 6500,
-    image: "",
+    image: "https://images.unsplash.com/photo-1510693206972-df098062cb71?auto=format&fit=crop&w=640&q=80",
     badge: "",
+    options: ["기본", "치즈 많이", "파 빼기", "아이용"],
     soldOut: true,
   },
   {
@@ -58,8 +130,9 @@ const defaultMenu = [
     name: "소주",
     desc: "추가 주문이 잦은 기본 주류",
     price: 5000,
-    image: "",
+    image: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=640&q=80",
     badge: "",
+    options: ["기본", "차갑게", "잔 추가"],
     soldOut: false,
   },
   {
@@ -68,8 +141,9 @@ const defaultMenu = [
     name: "콜라",
     desc: "탄산음료",
     price: 2500,
-    image: "",
+    image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=640&q=80",
     badge: "",
+    options: ["기본", "얼음 적게", "얼음 많이", "빨대 필요"],
     soldOut: false,
   },
 ];
@@ -90,6 +164,9 @@ const state = {
   lastAlertMessage: "",
   freshAlertUntil: 0,
   returnTimer: null,
+  language: localStorage.getItem(LANG_KEY) || "ko",
+  accessMode: localStorage.getItem(ACCESS_KEY) || "default",
+  paymentMode: localStorage.getItem(PAYMENT_KEY) || "postpaid",
 };
 
 function formatMoney(value) {
@@ -98,11 +175,12 @@ function formatMoney(value) {
 
 function loadMenu() {
   const saved = readJson(MENU_KEY);
-  return Array.isArray(saved) && saved.length ? saved : structuredClone(defaultMenu);
+  return Array.isArray(saved) && saved.length ? hydrateMenu(saved) : structuredClone(defaultMenu);
 }
 
 function saveMenu() {
   localStorage.setItem(MENU_KEY, JSON.stringify(state.menu));
+  broadcastSync("menu");
 }
 
 function loadOrders() {
@@ -114,6 +192,25 @@ function loadOrders() {
 
 function saveOrders() {
   localStorage.setItem(ORDER_KEY, JSON.stringify(state.orders));
+  broadcastSync("orders");
+}
+
+function broadcastSync(type) {
+  if (!realtimeChannel) return;
+  realtimeChannel.postMessage({ type, at: Date.now() });
+}
+
+function hydrateMenu(menu) {
+  const defaults = new Map(defaultMenu.map((item) => [item.id, item]));
+  return menu.map((item) => {
+    const fallback = defaults.get(item.id) || {};
+    return {
+      ...fallback,
+      ...item,
+      image: item.image || fallback.image || "",
+      options: Array.isArray(item.options) && item.options.length ? item.options : fallbackOptions(item.category || fallback.category),
+    };
+  });
 }
 
 function readJson(key) {
@@ -138,9 +235,18 @@ function activeOrderKey() {
 }
 
 function getMenuOptions(item) {
-  if (item.category === "drink") return ["기본", "얼음 적게", "얼음 많이", "잔 추가"];
-  if (item.category === "side") return ["기본", "덜 맵게", "맵게", "앞접시 필요"];
+  if (Array.isArray(item.options) && item.options.length) return item.options;
+  return fallbackOptions(item.category);
+}
+
+function fallbackOptions(category) {
+  if (category === "drink") return ["기본", "얼음 적게", "얼음 많이", "잔 추가"];
+  if (category === "side") return ["기본", "덜 맵게", "맵게", "앞접시 필요"];
   return ["기본", "덜 익힘", "바싹 익힘", "쌈 채소 추가"];
+}
+
+function t(key) {
+  return translations[state.language]?.[key] || translations.ko[key] || key;
 }
 
 function makeCartLineId(menuId, option = "기본") {
@@ -162,6 +268,7 @@ function initCustomer() {
   document.querySelector("#tableName").textContent = `${Number(table) || table}번 테이블`;
 
   bindCustomerEvents();
+  bindRealtimeSync();
   window.addEventListener("storage", (event) => {
     if (event.key === MENU_KEY) {
       state.menu = loadMenu();
@@ -180,6 +287,31 @@ function initCustomer() {
   renderPopularRail();
   renderCart();
   renderCurrentOrder();
+  renderSecurityPanel();
+  applyLanguage();
+  applyAccessMode();
+  applyPaymentMode();
+}
+
+function bindRealtimeSync() {
+  if (!realtimeChannel) return;
+  realtimeChannel.addEventListener("message", (event) => {
+    if (!event.data?.type) return;
+    if (event.data.type === "menu") {
+      state.menu = loadMenu();
+      if (pageType() === "customer") {
+        renderCustomerMenu();
+        renderPopularRail();
+        renderCart();
+      }
+      if (pageType() === "admin") renderAdmin();
+    }
+    if (event.data.type === "orders") {
+      state.orders = loadOrders();
+      if (pageType() === "customer") renderCurrentOrder();
+      if (pageType() === "admin") refreshOrders();
+    }
+  });
 }
 
 function watchMenuChanges() {
@@ -271,6 +403,34 @@ function bindCustomerEvents() {
     document.querySelector("#cartPanel").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
+  document.querySelectorAll("[data-lang]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.language = button.dataset.lang;
+      applyLanguage();
+      renderCustomerMenu();
+      renderCart();
+    });
+  });
+
+  document.querySelectorAll("[data-access-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.accessMode = state.accessMode === button.dataset.accessMode ? "default" : button.dataset.accessMode;
+      applyAccessMode();
+    });
+  });
+
+  document.querySelectorAll("[data-payment-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.paymentMode = button.dataset.paymentMode;
+      applyPaymentMode();
+    });
+  });
+
+  document.querySelector("#viewPolicy").addEventListener("click", openPolicySheet);
+  document.querySelector("#policySheet").addEventListener("click", (event) => {
+    if (event.target.closest("[data-close-policy]")) closePolicySheet();
+  });
+
   document.querySelector("#menuDetail").addEventListener("click", (event) => {
     if (event.target.closest("[data-close-detail]")) closeMenuDetail();
     const optionButton = event.target.closest("[data-option]");
@@ -305,6 +465,99 @@ function showCompleteScreen() {
   document.querySelector(".menu-area").hidden = true;
   document.querySelector("#cartPanel").hidden = true;
   document.querySelector("#orderComplete").hidden = false;
+}
+
+function openPolicySheet() {
+  document.querySelector("#policySheet").hidden = false;
+  document.body.classList.add("sheet-open");
+}
+
+function closePolicySheet() {
+  document.querySelector("#policySheet").hidden = true;
+  document.body.classList.remove("sheet-open");
+}
+
+function applyLanguage() {
+  localStorage.setItem(LANG_KEY, state.language);
+  document.body.dataset.lang = state.language;
+  document.querySelectorAll("[data-lang]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.lang === state.language);
+  });
+
+  const languageState = document.querySelector("#languageState");
+  if (languageState) languageState.textContent = t("languageReady");
+
+  const title = document.querySelector("#menuTitle");
+  if (title) title.textContent = t("menu");
+  const eyebrow = document.querySelector(".customer-title p");
+  if (eyebrow) eyebrow.textContent = t("qrOrder");
+  const searchLabel = document.querySelector(".search-box");
+  if (searchLabel) {
+    const input = searchLabel.querySelector("input");
+    searchLabel.childNodes[0].textContent = t("searchLabel");
+    if (input) input.placeholder = t("searchPlaceholder");
+  }
+  const cartTitle = document.querySelector("#cartTitle");
+  if (cartTitle) cartTitle.textContent = t("cart");
+  const panelEyebrow = document.querySelector(".panel-head p");
+  if (panelEyebrow) panelEyebrow.textContent = t("orderReview");
+  const note = document.querySelector(".order-note");
+  if (note) {
+    const textarea = note.querySelector("textarea");
+    note.childNodes[0].textContent = t("request");
+    if (textarea) textarea.placeholder = t("requestPlaceholder");
+  }
+  const orderButton = document.querySelector("#placeOrder");
+  if (orderButton) orderButton.textContent = t("orderNow");
+  const policyButton = document.querySelector("#viewPolicy");
+  if (policyButton) policyButton.textContent = t("policy");
+
+  document.querySelectorAll("[data-category]").forEach((button) => {
+    button.textContent = categoryLabels[button.dataset.category] || button.textContent;
+  });
+}
+
+function applyAccessMode() {
+  localStorage.setItem(ACCESS_KEY, state.accessMode);
+  document.body.classList.toggle("large-text", state.accessMode === "large");
+  document.body.classList.toggle("high-contrast", state.accessMode === "contrast");
+  document.querySelectorAll("[data-access-mode]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.accessMode === state.accessMode);
+  });
+  const accessState = document.querySelector("#accessState");
+  if (!accessState) return;
+  accessState.textContent =
+    state.accessMode === "large" ? "큰 글씨 적용" : state.accessMode === "contrast" ? "고대비 적용" : "기본 보기";
+}
+
+function applyPaymentMode() {
+  localStorage.setItem(PAYMENT_KEY, state.paymentMode);
+  document.querySelectorAll("[data-payment-mode]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.paymentMode === state.paymentMode);
+  });
+  const hint = document.querySelector("#paymentModeHint");
+  if (!hint) return;
+  hint.textContent =
+    state.paymentMode === "prepaid"
+      ? "선불 결제 연결 준비 모드입니다. 실제 PG 키를 연결하면 결제 승인 후 주문이 접수됩니다."
+      : "후불 대면 결제 모드입니다. 식사 후 카운터나 직원에게 결제합니다.";
+}
+
+function renderSecurityPanel() {
+  const panel = document.querySelector("#securityPanel");
+  if (!panel) return;
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("token") || params.get("qr");
+  const { table } = getTableInfo();
+  const verified = Boolean(token && token.length >= 6);
+  panel.innerHTML = `
+    <div>
+      <strong>${verified ? "QR 세션 확인됨" : "데모 QR 세션"}</strong>
+      <span>${Number(table) || table}번 테이블 · ${verified ? "토큰 검증 통과" : "운영 배포 시 서명 토큰 권장"}</span>
+    </div>
+    <small>${realtimeChannel ? "실시간 동기화 ON" : "저장소 동기화"}</small>
+  `;
+  panel.classList.toggle("verified", verified);
 }
 
 function openMenuDetail(menuId) {
@@ -415,10 +668,10 @@ function renderCustomerMenu() {
           </div>
           <div class="menu-actions">
             <button class="detail-button" type="button" data-detail="${item.id}" ${item.soldOut ? "disabled" : ""}>
-              옵션
+              ${t("option")}
             </button>
             <button class="add-button" type="button" data-add="${item.id}" ${item.soldOut ? "disabled" : ""}>
-              담기
+              ${t("add")}
             </button>
           </div>
         </article>
@@ -556,6 +809,8 @@ function placeOrder() {
     items: state.cart.map((item) => ({ ...item })),
     total,
     note,
+    paymentMode: state.paymentMode,
+    paymentStatus: state.paymentMode === "prepaid" ? "payment-ready" : "pay-at-counter",
     status: "pending",
     createdAt: new Date(),
   };
@@ -570,7 +825,10 @@ function placeOrder() {
   showCompleteScreen();
   document.querySelector("#completeTitle").textContent = `${Number(table) || table}번 테이블 주문 접수`;
   document.querySelector("#completeMeta").textContent = `주문번호 ${orderNo}`;
-  document.querySelector("#completeMessage").textContent = `합계 ${formatMoney(total)} 주문이 접수되었습니다. 직원이 확인 후 준비합니다.`;
+  document.querySelector("#completeMessage").textContent =
+    state.paymentMode === "prepaid"
+      ? `합계 ${formatMoney(total)} 주문이 접수되었습니다. 실제 운영에서는 결제 승인 후 주방으로 전송됩니다.`
+      : `합계 ${formatMoney(total)} 주문이 접수되었습니다. 직원이 확인 후 준비합니다.`;
   document.querySelector("#orderNote").value = "";
   startReturnCountdown();
   state.orderLocked = false;
@@ -668,6 +926,7 @@ function requestService(serviceName) {
 
 function initAdmin() {
   bindAdminEvents();
+  bindRealtimeSync();
   syncKnownPendingOrders();
   renderAdmin();
   window.setInterval(refreshOrders, 1200);
@@ -776,6 +1035,7 @@ function renderAdmin() {
   renderOrderBoard();
   renderMenuManager();
   renderBoardHint();
+  renderSystemStatus();
 }
 
 function renderMetrics() {
@@ -802,6 +1062,26 @@ function renderMetrics() {
   document.querySelector("#serviceCount").textContent = String(pendingService);
   document.querySelector("#soldOutCount").textContent = String(soldOut);
   document.querySelector("#oldestWait").textContent = `${oldestMinutes}분`;
+}
+
+function renderSystemStatus() {
+  const realtime = document.querySelector("#realtimeStatus");
+  if (!realtime) return;
+
+  const withImages = state.menu.filter((item) => item.image).length;
+  const soldOut = state.menu.filter((item) => item.soldOut).length;
+  const pending = state.orders.filter((order) => order.status === "pending").length;
+  const time = new Intl.DateTimeFormat("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date());
+
+  realtime.textContent = realtimeChannel ? "탭 간 실시간 ON" : "저장소 폴링";
+  document.querySelector("#securityStatus").textContent = "테이블 토큰 권장";
+  document.querySelector("#imageStatus").textContent = `${withImages}/${state.menu.length}개`;
+  document.querySelector("#paymentStatus").textContent = "선불/후불 준비";
+  document.querySelector("#systemSyncTime").textContent = `${time} 기준 · 대기 ${pending}건 · 품절 ${soldOut}개`;
 }
 
 function countOrders(status) {
@@ -883,12 +1163,14 @@ function renderOrderCard(order, column) {
   const note = order.note ? `<p class="order-note-line">요청: ${escapeHtml(order.note)}</p>` : "";
   const orderNo = order.orderNo ? `<small>주문번호 ${escapeHtml(order.orderNo)}</small>` : "";
   const serviceBadge = order.service ? '<span class="service-badge">직원 호출</span>' : "";
+  const paymentBadge =
+    order.paymentMode === "prepaid" ? '<span class="payment-badge">선불 준비</span>' : '<span class="payment-badge">후불</span>';
 
   return `
     <article class="order-card ${order.status} ${waitClass}">
       <div class="order-card-head">
         <strong>${Number(order.table) || order.table}번 테이블</strong>
-        <span>${serviceBadge}${formatMoney(order.total)}</span>
+        <span>${serviceBadge}${paymentBadge}${formatMoney(order.total)}</span>
       </div>
       <div class="order-card-meta">
         ${orderNo}
@@ -951,6 +1233,10 @@ function renderMenuManager() {
             <input data-id="${item.id}" data-field="badge" value="${escapeAttr(item.badge || "")}" placeholder="추천, 인기" />
           </label>
           <label>
+            옵션
+            <input data-id="${item.id}" data-field="options" value="${escapeAttr(getMenuOptions(item).join(", "))}" placeholder="기본, 덜 맵게" />
+          </label>
+          <label>
             이미지 URL
             <input data-id="${item.id}" data-field="image" value="${escapeAttr(item.image)}" placeholder="https://..." />
           </label>
@@ -976,9 +1262,14 @@ function renderMenuManager() {
 function updateMenuField(id, field, value, shouldRender = true) {
   const item = state.menu.find((entry) => entry.id === id);
   if (!item) return;
-  item[field] = field === "price" ? Number(value) || 0 : value;
+  if (field === "price") item[field] = Number(value) || 0;
+  else if (field === "options") item[field] = String(value).split(",").map((entry) => entry.trim()).filter(Boolean);
+  else item[field] = value;
   saveMenu();
-  if (pageType() === "admin") renderMetrics();
+  if (pageType() === "admin") {
+    renderMetrics();
+    renderSystemStatus();
+  }
   if (shouldRender) renderMenuManager();
 }
 
@@ -1010,11 +1301,17 @@ async function addMenuItem(event) {
     price,
     image,
     badge: String(formData.get("badge") || "").trim(),
+    options: String(formData.get("options") || "")
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter(Boolean),
     soldOut: false,
   });
   saveMenu();
   form.reset();
   renderMenuManager();
+  renderMetrics();
+  renderSystemStatus();
 }
 
 function deleteMenuItem(id) {
@@ -1024,6 +1321,8 @@ function deleteMenuItem(id) {
   state.menu = state.menu.filter((entry) => entry.id !== id);
   saveMenu();
   renderMenuManager();
+  renderMetrics();
+  renderSystemStatus();
 }
 
 function moveMenuItem(id, direction) {
@@ -1037,6 +1336,7 @@ function moveMenuItem(id, direction) {
   state.menu.splice(nextIndex, 0, item);
   saveMenu();
   renderMenuManager();
+  renderSystemStatus();
 }
 
 function imageFileToDataUrl(file) {
