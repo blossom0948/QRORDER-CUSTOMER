@@ -6,6 +6,10 @@
 
 https://blossom0948.github.io/QRORDER-CUSTOMER/
 
+커스텀 도메인 연결 예정:
+
+https://order.blossom0948.cloud/
+
 ## 주요 기능
 
 - QR 링크의 `store`, `table`, `token`으로 매장과 테이블 연결

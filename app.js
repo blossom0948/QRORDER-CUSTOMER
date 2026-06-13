@@ -3,7 +3,6 @@ import {
   getAuth,
   GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
@@ -808,6 +807,9 @@ function toFirestoreOrder(order) {
 function customerBaseUrl() {
   if (["localhost", "127.0.0.1"].includes(location.hostname)) {
     return new URL("index.html", location.href).toString();
+  }
+  if (location.hostname === "admin.blossom0948.cloud") {
+    return "https://order.blossom0948.cloud/";
   }
   return "https://blossom0948.github.io/QRORDER-CUSTOMER/";
 }
@@ -1751,25 +1753,6 @@ function bindAdminFirebaseEvents() {
     }
   });
 
-  document.querySelector("#adminLoginForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const email = String(formData.get("email") || "").trim();
-    const password = String(formData.get("password") || "");
-    if (!email || !password) return;
-
-    state.firebaseStatus = "로그인 중입니다.";
-    renderFirebaseAdminPanel();
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      event.currentTarget.reset();
-    } catch (error) {
-      state.firebaseStatus = firebaseAuthMessage(error);
-      renderFirebaseAdminPanel();
-      console.error(error);
-    }
-  });
-
   document.querySelector("#adminLogout").addEventListener("click", () => signOut(auth));
 
   document.querySelector("#createStoreForm").addEventListener("submit", async (event) => {
@@ -1805,13 +1788,10 @@ function firebaseAuthMessage(error) {
     return "Firebase Authentication > Sign-in method에서 Google 로그인을 켜 주세요.";
   }
   if (code === "auth/unauthorized-domain") {
-    return "Firebase Authentication > Settings > Authorized domains에 blossom0948.github.io를 추가해 주세요.";
+    return "Firebase Authentication > Settings > Authorized domains에 blossom0948.github.io와 admin.blossom0948.cloud를 추가해 주세요.";
   }
   if (code === "auth/popup-closed-by-user") {
     return "로그인 창이 닫혔습니다. Google로 시작하기를 다시 눌러 주세요.";
-  }
-  if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
-    return "로그인 실패: 이메일 또는 비밀번호를 확인해 주세요.";
   }
   return "로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.";
 }
@@ -1962,16 +1942,21 @@ async function createStoreWithDefaults(storeName, tableCount) {
 
 function renderFirebaseAdminPanel() {
   const title = document.querySelector("#firebaseStoreTitle");
-  if (!title) return;
   const isSignedIn = Boolean(state.user);
   const hasStore = Boolean(state.storeId);
+  const loginGate = document.querySelector("#loginGate");
+  const adminHeader = document.querySelector("#adminHeader");
+  const adminDashboard = document.querySelector("#adminDashboard");
+  const loginStatus = document.querySelector("#loginStatus");
+
+  if (loginGate) loginGate.hidden = isSignedIn;
+  if (adminHeader) adminHeader.hidden = !isSignedIn;
+  if (adminDashboard) adminDashboard.hidden = !isSignedIn;
+  if (loginStatus) loginStatus.textContent = state.firebaseStatus;
+  if (!title) return;
 
   title.textContent = hasStore ? state.storeName || "매장 연결됨" : isSignedIn ? "매장을 만들어 주세요" : "로그인 후 매장을 연결하세요";
   document.querySelector("#firebaseStatus").textContent = state.firebaseStatus;
-  document.querySelector("#quickStartBox").hidden = isSignedIn;
-  document.querySelector("#googleLogin").hidden = isSignedIn;
-  document.querySelector("#adminLoginForm").hidden = isSignedIn;
-  document.querySelector("#emailLoginDetails").hidden = isSignedIn;
   document.querySelector("#adminSession").hidden = !isSignedIn;
   document.querySelector("#adminUserLabel").textContent = state.user?.displayName || state.user?.email || "";
   document.querySelector("#createStoreForm").hidden = !isSignedIn || hasStore;

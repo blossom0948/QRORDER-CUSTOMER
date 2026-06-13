@@ -1831,6 +1831,59 @@ body[data-page="admin"] {
   background: #f6f7f4;
 }
 
+body[data-page="admin"] [hidden] {
+  display: none !important;
+}
+
+.admin-login-gate {
+  align-items: center;
+  background: linear-gradient(180deg, #f8fbff 0%, #fff7f3 100%);
+  display: grid;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.login-card {
+  background: #fff;
+  border: 1px solid #e1e5df;
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  justify-self: center;
+  max-width: 460px;
+  padding: 24px;
+  width: 100%;
+}
+
+.login-card p,
+.login-card h1 {
+  margin: 0;
+}
+
+.login-card p {
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.login-card h1 {
+  color: #111;
+  font-size: 28px;
+  line-height: 1.15;
+}
+
+.login-card span,
+.login-card small {
+  color: #526173;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.login-card .google-login {
+  width: 100%;
+}
+
 body[data-page="admin"] .admin-header {
   background: #fff;
   border-bottom: 1px solid #e1e5df;
@@ -2409,63 +2462,16 @@ body[data-page="admin"] .alert-panel h2 {
   font-weight: 900;
 }
 
-.quick-start-box {
-  align-items: center;
-  background: #f8fbff;
-  border: 1px solid #dfe9f7;
-  border-radius: 8px;
-  display: grid;
-  gap: 10px;
-  grid-template-columns: minmax(180px, 240px) 1fr;
-  padding: 12px;
-}
-
-.quick-start-box small {
-  color: #526173;
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1.45;
-}
-
 .google-login {
   min-height: 48px;
 }
 
-.email-login-details {
-  border: 1px solid #ebe6de;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.email-login-details summary {
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 900;
-  list-style: none;
-  padding: 12px;
-}
-
-.email-login-details summary::-webkit-details-marker {
-  display: none;
-}
-
-.email-login-details[open] summary {
-  border-bottom: 1px solid #ebe6de;
-}
-
-.email-login-details .admin-login-form {
-  padding: 12px;
-}
-
-.admin-login-form,
 .store-create-form {
   display: grid;
   gap: 10px;
   grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
 }
 
-.admin-login-form label,
 .store-create-form label {
   color: var(--muted);
   display: grid;
@@ -2474,7 +2480,6 @@ body[data-page="admin"] .alert-panel h2 {
   gap: 7px;
 }
 
-.admin-login-form input,
 .store-create-form input {
   border: 1px solid #ebe6de;
   border-radius: 8px;
@@ -2482,7 +2487,6 @@ body[data-page="admin"] .alert-panel h2 {
   padding: 0 12px;
 }
 
-.admin-login-form button,
 .store-create-form button {
   align-self: end;
 }
@@ -2630,12 +2634,7 @@ body[data-page="admin"] .menu-manage-row {
     grid-template-columns: 1fr;
   }
 
-  .admin-login-form,
   .store-create-form {
-    grid-template-columns: 1fr;
-  }
-
-  .quick-start-box {
     grid-template-columns: 1fr;
   }
 
