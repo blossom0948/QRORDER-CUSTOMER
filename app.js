@@ -31,6 +31,7 @@ const ACCESS_KEY = "qrorder.access.v1";
 const PAYMENT_KEY = "qrorder.payment.v1";
 const SYNC_CHANNEL = "qrorder.sync.v1";
 const SELECTED_STORE_KEY = "qrorder.selectedStore.v1";
+const QR_CODE_CDN = "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCRDZfNLzoruz2NhMhrfk4p3E_AxQDSrR0",
@@ -47,6 +48,7 @@ const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
+let qrLibraryPromise = null;
 
 const realtimeChannel = "BroadcastChannel" in window ? new BroadcastChannel(SYNC_CHANNEL) : null;
 
@@ -820,6 +822,25 @@ function qrUrlFor(session) {
   url.searchParams.set("table", session.tableNo);
   url.searchParams.set("token", session.token);
   return url.toString();
+}
+
+function ensureQrLibrary() {
+  if (typeof window.qrcode === "function") return Promise.resolve(window.qrcode);
+  if (qrLibraryPromise) return qrLibraryPromise;
+
+  qrLibraryPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = QR_CODE_CDN;
+    script.async = true;
+    script.onload = () => {
+      if (typeof window.qrcode === "function") resolve(window.qrcode);
+      else reject(new Error("QR library loaded without qrcode"));
+    };
+    script.onerror = () => reject(new Error("QR library failed to load"));
+    document.head.append(script);
+  });
+
+  return qrLibraryPromise;
 }
 
 function randomToken() {
@@ -1773,12 +1794,20 @@ function bindAdminFirebaseEvents() {
 
   document.querySelector("#qrLinks").addEventListener("click", async (event) => {
     const button = event.target.closest("[data-copy-qr]");
-    if (!button) return;
-    await navigator.clipboard?.writeText(button.dataset.copyQr);
-    button.textContent = "복사됨";
-    window.setTimeout(() => {
-      button.textContent = "링크 복사";
-    }, 1400);
+    if (button) {
+      await navigator.clipboard?.writeText(button.dataset.copyQr);
+      button.textContent = "복사됨";
+      window.setTimeout(() => {
+        button.textContent = "링크 복사";
+      }, 1400);
+      return;
+    }
+
+    const printButton = event.target.closest("[data-print-qr]");
+    if (printButton) {
+      const card = printButton.closest(".qr-link-card");
+      printQrCard(card);
+    }
   });
 }
 
@@ -1994,15 +2023,97 @@ function renderQrLinks() {
   box.innerHTML = state.qrSessions
     .map((session) => {
       const url = qrUrlFor(session);
+      const tableLabel = `${Number(session.tableNo) || session.tableNo}번 테이블`;
       return `
-        <article class="qr-link-card">
-          <strong>${Number(session.tableNo) || session.tableNo}번 테이블</strong>
-          <a href="${escapeAttr(url)}" target="_blank" rel="noreferrer">${escapeHtml(url)}</a>
-          <button type="button" data-copy-qr="${escapeAttr(url)}">링크 복사</button>
+        <article class="qr-link-card" data-qr-card data-table-label="${escapeAttr(tableLabel)}">
+          <div class="qr-card-head">
+            <strong>${escapeHtml(tableLabel)}</strong>
+            <span>손님용 QR</span>
+          </div>
+          <div class="qr-preview" data-qr-url="${escapeAttr(url)}">
+            <span>QR 생성 중</span>
+          </div>
+          <a class="qr-url" href="${escapeAttr(url)}" target="_blank" rel="noreferrer">${escapeHtml(url)}</a>
+          <div class="qr-actions">
+            <button type="button" data-copy-qr="${escapeAttr(url)}">링크 복사</button>
+            <a class="qr-download disabled" data-qr-download href="#" download="qrorder-${escapeAttr(String(session.tableNo))}.png">PNG 다운로드</a>
+            <button type="button" data-print-qr>인쇄</button>
+          </div>
         </article>
       `;
     })
     .join("");
+
+  renderQrImages();
+}
+
+async function renderQrImages() {
+  const previews = [...document.querySelectorAll("[data-qr-url]")];
+  if (!previews.length) return;
+
+  try {
+    const makeQrCode = await ensureQrLibrary();
+    await Promise.all(
+      previews.map(async (preview) => {
+        const url = preview.dataset.qrUrl;
+        const qr = makeQrCode(0, "M");
+        qr.addData(url);
+        qr.make();
+        const dataUrl = qr.createDataURL(8, 2);
+        preview.innerHTML = `<img src="${escapeAttr(dataUrl)}" alt="테이블 주문 QR" />`;
+        const card = preview.closest("[data-qr-card]");
+        const download = card?.querySelector("[data-qr-download]");
+        if (download) {
+          download.href = dataUrl;
+          download.classList.remove("disabled");
+        }
+      }),
+    );
+  } catch (error) {
+    console.error(error);
+    previews.forEach((preview) => {
+      preview.innerHTML = "<span>QR 생성 실패<br />링크를 복사해 사용하세요</span>";
+    });
+  }
+}
+
+function printQrCard(card) {
+  if (!card) return;
+  const image = card.querySelector(".qr-preview img");
+  const url = card.querySelector(".qr-url")?.textContent || "";
+  const tableLabel = card.dataset.tableLabel || "테이블 QR";
+  if (!image?.src) return;
+
+  const printWindow = window.open("", "_blank", "width=420,height=620");
+  if (!printWindow) return;
+  printWindow.document.write(`
+    <!doctype html>
+    <html lang="ko">
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(tableLabel)} QR</title>
+        <style>
+          body { align-items: center; display: grid; font-family: Arial, sans-serif; justify-items: center; margin: 0; min-height: 100vh; padding: 24px; text-align: center; }
+          h1 { font-size: 26px; margin: 0 0 16px; }
+          img { height: 260px; width: 260px; }
+          p { color: #444; font-size: 12px; overflow-wrap: anywhere; }
+        </style>
+      </head>
+      <body>
+        <main>
+          <h1>${escapeHtml(tableLabel)}</h1>
+          <img src="${escapeAttr(image.src)}" alt="${escapeAttr(tableLabel)} QR" />
+          <p>${escapeHtml(url)}</p>
+        </main>
+        <script>
+          window.addEventListener("load", () => {
+            window.print();
+          });
+        </script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
 }
 
 function bindAdminEvents() {
