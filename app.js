@@ -1798,7 +1798,14 @@ function firebaseAuthMessage(error) {
 
 function firebaseWriteMessage(error) {
   const code = error?.code || "";
+  const step = error?.qrOrderStep || "";
   if (code === "permission-denied") {
+    if (step === "store") {
+      return "매장 문서 생성이 막혔습니다. Firebase Console > Firestore Database > Rules에 최신 firestore.rules를 게시해야 합니다.";
+    }
+    if (step === "seed") {
+      return "기본 메뉴/QR 생성이 막혔습니다. Firebase Console > Firestore Database > Rules에 최신 firestore.rules를 다시 게시해 주세요.";
+    }
     return "매장 생성 권한이 막혔습니다. Firebase Firestore Rules에 최신 firestore.rules 내용을 게시해 주세요.";
   }
   if (code === "unavailable") {
@@ -1910,12 +1917,18 @@ async function createStoreWithDefaults(storeName, tableCount) {
   renderFirebaseAdminPanel();
 
   const storeRef = doc(storesCollection());
-  await setDoc(storeRef, {
-    name: storeName,
-    ownerUid: state.user.uid,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
+  try {
+    await setDoc(storeRef, {
+      name: storeName,
+      ownerUid: state.user.uid,
+      ownerEmail: state.user.email || "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  } catch (error) {
+    error.qrOrderStep = "store";
+    throw error;
+  }
 
   const batch = writeBatch(db);
   defaultMenu.forEach((item, index) => {
@@ -1939,6 +1952,7 @@ async function createStoreWithDefaults(storeName, tableCount) {
   try {
     await batch.commit();
   } catch (error) {
+    error.qrOrderStep = "seed";
     await deleteDoc(storeRef).catch(() => {});
     throw error;
   }
