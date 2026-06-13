@@ -1,9 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import {
+  browserLocalPersistence,
   getAuth,
   getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
+  setPersistence,
   signInWithPopup,
   signInWithRedirect,
   signOut,
@@ -1757,6 +1759,9 @@ function initAdmin() {
   renderFirebaseAdminPanel();
   handleAdminRedirectResult();
   onAuthStateChanged(auth, handleAdminAuthChange);
+  window.setTimeout(() => {
+    if (auth.currentUser && !state.user) completeAdminSignIn(auth.currentUser).catch(console.error);
+  }, 900);
   window.setInterval(() => {
     if (state.firebaseMode !== "admin") refreshOrders();
   }, 1200);
@@ -1767,7 +1772,9 @@ function bindAdminFirebaseEvents() {
     state.firebaseStatus = "Google 로그인 창을 여는 중입니다.";
     renderFirebaseAdminPanel();
     try {
-      await signInWithPopup(auth, googleProvider);
+      await setPersistence(auth, browserLocalPersistence);
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result?.user) await completeAdminSignIn(result.user);
     } catch (error) {
       state.firebaseStatus = firebaseAuthMessage(error);
       renderFirebaseAdminPanel();
@@ -1779,6 +1786,7 @@ function bindAdminFirebaseEvents() {
     state.firebaseStatus = "Google 로그인 페이지로 이동합니다.";
     renderFirebaseAdminPanel();
     try {
+      await setPersistence(auth, browserLocalPersistence);
       await signInWithRedirect(auth, googleProvider);
     } catch (error) {
       state.firebaseStatus = firebaseAuthMessage(error);
@@ -1838,13 +1846,26 @@ async function handleAdminRedirectResult() {
   try {
     const result = await getRedirectResult(auth);
     if (result?.user) {
-      state.firebaseStatus = "Google 로그인 완료. 매장을 불러오는 중입니다.";
-      renderFirebaseAdminPanel();
+      await completeAdminSignIn(result.user);
     }
   } catch (error) {
     state.firebaseStatus = firebaseAuthMessage(error);
     renderFirebaseAdminPanel();
     console.error(error);
+  }
+}
+
+async function completeAdminSignIn(user) {
+  state.user = user;
+  state.firebaseStatus = "Google 로그인 완료. 사장님 화면을 여는 중입니다.";
+  renderAdmin();
+  renderFirebaseAdminPanel();
+  try {
+    await loadAdminStores();
+  } catch (error) {
+    console.error(error);
+    state.firebaseStatus = error.message || "로그인은 성공했지만 매장 데이터를 불러오지 못했습니다.";
+    renderFirebaseAdminPanel();
   }
 }
 
