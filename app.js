@@ -1,8 +1,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import {
   getAuth,
+  GoogleAuthProvider,
   onAuthStateChanged,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 import {
@@ -44,6 +46,8 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
 
 const realtimeChannel = "BroadcastChannel" in window ? new BroadcastChannel(SYNC_CHANNEL) : null;
 
@@ -1735,6 +1739,18 @@ function initAdmin() {
 }
 
 function bindAdminFirebaseEvents() {
+  document.querySelector("#googleLogin").addEventListener("click", async () => {
+    state.firebaseStatus = "Google 로그인 창을 여는 중입니다.";
+    renderFirebaseAdminPanel();
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      state.firebaseStatus = firebaseAuthMessage(error);
+      renderFirebaseAdminPanel();
+      console.error(error);
+    }
+  });
+
   document.querySelector("#adminLoginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -1748,7 +1764,7 @@ function bindAdminFirebaseEvents() {
       await signInWithEmailAndPassword(auth, email, password);
       event.currentTarget.reset();
     } catch (error) {
-      state.firebaseStatus = "로그인 실패: 이메일/비밀번호 또는 admins 권한을 확인하세요.";
+      state.firebaseStatus = firebaseAuthMessage(error);
       renderFirebaseAdminPanel();
       console.error(error);
     }
@@ -1762,8 +1778,14 @@ function bindAdminFirebaseEvents() {
     const storeName = String(formData.get("storeName") || "").trim();
     const tableCount = Math.min(30, Math.max(1, Number(formData.get("tableCount")) || 10));
     if (!storeName) return;
-    await createStoreWithDefaults(storeName, tableCount);
-    event.currentTarget.reset();
+    try {
+      await createStoreWithDefaults(storeName, tableCount);
+      event.currentTarget.reset();
+    } catch (error) {
+      console.error(error);
+      state.firebaseStatus = firebaseWriteMessage(error);
+      renderFirebaseAdminPanel();
+    }
   });
 
   document.querySelector("#qrLinks").addEventListener("click", async (event) => {
@@ -1775,6 +1797,34 @@ function bindAdminFirebaseEvents() {
       button.textContent = "링크 복사";
     }, 1400);
   });
+}
+
+function firebaseAuthMessage(error) {
+  const code = error?.code || "";
+  if (code === "auth/operation-not-allowed") {
+    return "Firebase Authentication > Sign-in method에서 Google 로그인을 켜 주세요.";
+  }
+  if (code === "auth/unauthorized-domain") {
+    return "Firebase Authentication > Settings > Authorized domains에 blossom0948.github.io를 추가해 주세요.";
+  }
+  if (code === "auth/popup-closed-by-user") {
+    return "로그인 창이 닫혔습니다. Google로 시작하기를 다시 눌러 주세요.";
+  }
+  if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/user-not-found") {
+    return "로그인 실패: 이메일 또는 비밀번호를 확인해 주세요.";
+  }
+  return "로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+}
+
+function firebaseWriteMessage(error) {
+  const code = error?.code || "";
+  if (code === "permission-denied") {
+    return "매장 생성 권한이 막혔습니다. Firebase Firestore Rules에 최신 firestore.rules 내용을 게시해 주세요.";
+  }
+  if (code === "unavailable") {
+    return "Firebase 연결이 불안정합니다. 네트워크를 확인하고 다시 눌러 주세요.";
+  }
+  return "매장 생성에 실패했습니다. Firebase 설정과 네트워크를 확인해 주세요.";
 }
 
 async function handleAdminAuthChange(user) {
@@ -1793,19 +1843,13 @@ async function handleAdminAuthChange(user) {
     return;
   }
 
-  state.firebaseStatus = "사장님 권한 확인 중입니다.";
+  state.firebaseStatus = "Google 로그인 완료. 매장을 불러오는 중입니다.";
   renderFirebaseAdminPanel();
   try {
-    const adminSnapshot = await getDoc(doc(db, "admins", user.uid));
-    if (!adminSnapshot.exists()) {
-      state.firebaseStatus = "admins 문서가 없습니다. Firebase 콘솔에서 admins/{UID} role owner를 확인하세요.";
-      renderFirebaseAdminPanel();
-      return;
-    }
     await loadAdminStores();
   } catch (error) {
     console.error(error);
-    state.firebaseStatus = error.message || "Firebase 권한 확인 실패";
+    state.firebaseStatus = error.message || "Firebase 매장 불러오기 실패";
     renderFirebaseAdminPanel();
   }
 }
@@ -1924,9 +1968,12 @@ function renderFirebaseAdminPanel() {
 
   title.textContent = hasStore ? state.storeName || "매장 연결됨" : isSignedIn ? "매장을 만들어 주세요" : "로그인 후 매장을 연결하세요";
   document.querySelector("#firebaseStatus").textContent = state.firebaseStatus;
+  document.querySelector("#quickStartBox").hidden = isSignedIn;
+  document.querySelector("#googleLogin").hidden = isSignedIn;
   document.querySelector("#adminLoginForm").hidden = isSignedIn;
+  document.querySelector("#emailLoginDetails").hidden = isSignedIn;
   document.querySelector("#adminSession").hidden = !isSignedIn;
-  document.querySelector("#adminUserLabel").textContent = state.user?.email || "";
+  document.querySelector("#adminUserLabel").textContent = state.user?.displayName || state.user?.email || "";
   document.querySelector("#createStoreForm").hidden = !isSignedIn || hasStore;
   document.querySelector("#storeTools").hidden = !hasStore;
   renderQrLinks();
