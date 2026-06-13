@@ -52,6 +52,7 @@ const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
+let authPersistencePromise = null;
 let qrLibraryPromise = null;
 
 const realtimeChannel = "BroadcastChannel" in window ? new BroadcastChannel(SYNC_CHANNEL) : null;
@@ -1754,6 +1755,7 @@ function initAdmin() {
   bindAdminEvents();
   bindRealtimeSync();
   bindAdminFirebaseEvents();
+  prepareAuthPersistence();
   syncKnownPendingOrders();
   renderAdmin();
   renderFirebaseAdminPanel();
@@ -1767,31 +1769,61 @@ function initAdmin() {
   }, 1200);
 }
 
+function prepareAuthPersistence() {
+  if (!authPersistencePromise) {
+    authPersistencePromise = setPersistence(auth, browserLocalPersistence).catch((error) => {
+      console.warn("Firebase auth persistence setup failed", error);
+    });
+  }
+  return authPersistencePromise;
+}
+
+function setLoginButtonBusy(button, busy, busyText = "") {
+  if (!button) return;
+  if (!button.dataset.idleLabel) button.dataset.idleLabel = button.textContent;
+  button.disabled = busy;
+  button.textContent = busy ? busyText : button.dataset.idleLabel;
+  button.setAttribute("aria-busy", String(busy));
+}
+
 function bindAdminFirebaseEvents() {
-  document.querySelector("#googleLogin").addEventListener("click", async () => {
+  const googleButton = document.querySelector("#googleLogin");
+  const redirectButton = document.querySelector("#googleRedirectLogin");
+
+  googleButton?.addEventListener("click", async () => {
+    setLoginButtonBusy(googleButton, true, "로그인 창 여는 중");
     state.firebaseStatus = "Google 로그인 창을 여는 중입니다.";
     renderFirebaseAdminPanel();
     try {
-      await setPersistence(auth, browserLocalPersistence);
+      prepareAuthPersistence();
       const result = await signInWithPopup(auth, googleProvider);
-      if (result?.user) await completeAdminSignIn(result.user);
+      if (result?.user) {
+        await completeAdminSignIn(result.user);
+      } else {
+        state.firebaseStatus = "Google 로그인이 완료되지 않았습니다. 다시 눌러 주세요.";
+        renderFirebaseAdminPanel();
+      }
     } catch (error) {
       state.firebaseStatus = firebaseAuthMessage(error);
       renderFirebaseAdminPanel();
       console.error(error);
+    } finally {
+      setLoginButtonBusy(googleButton, false);
     }
   });
 
-  document.querySelector("#googleRedirectLogin").addEventListener("click", async () => {
+  redirectButton?.addEventListener("click", async () => {
+    setLoginButtonBusy(redirectButton, true, "Google로 이동 중");
     state.firebaseStatus = "Google 로그인 페이지로 이동합니다.";
     renderFirebaseAdminPanel();
     try {
-      await setPersistence(auth, browserLocalPersistence);
+      prepareAuthPersistence();
       await signInWithRedirect(auth, googleProvider);
     } catch (error) {
       state.firebaseStatus = firebaseAuthMessage(error);
       renderFirebaseAdminPanel();
       console.error(error);
+      setLoginButtonBusy(redirectButton, false);
     }
   });
 
