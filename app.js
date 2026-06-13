@@ -461,6 +461,7 @@ function renderCart() {
   document.querySelector("#cartTotal").textContent = formatMoney(total);
   document.querySelector("#placeOrder").disabled = state.cart.length === 0;
   cartCount.textContent = String(totalQty);
+  document.querySelector("#cartPanel").classList.toggle("is-empty", state.cart.length === 0);
   if (bottomBar) {
     bottomBar.hidden = state.cart.length === 0;
     document.querySelector("#bottomCartCount").textContent = `${totalQty}개 담김`;
