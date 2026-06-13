@@ -2413,6 +2413,18 @@ body[data-page="admin"] .alert-panel h2 {
   font-weight: 900;
 }
 
+.guide-link {
+  align-items: center;
+  background: var(--brand-soft);
+  border-top: 1px solid #ebe6de;
+  color: var(--brand-dark);
+  display: flex;
+  font-weight: 900;
+  min-height: 46px;
+  padding: 0 14px;
+  text-decoration: none;
+}
+
 body[data-page="admin"] .menu-manage-row {
   align-items: end;
   grid-template-columns: 72px repeat(4, minmax(0, 1fr));
@@ -2425,28 +2437,6 @@ body[data-page="admin"] .menu-manage-row {
 .large-text .customer-menu-card,
 .large-text .cart-panel {
   font-size: 1.04em;
-}
-
-.high-contrast {
-  --bg: #fff;
-  --surface: #fff;
-  --ink: #000;
-  --muted: #333;
-  --line: #111;
-  --brand: #005fcc;
-  --brand-dark: #004a9f;
-  --brand-soft: #eaf3ff;
-}
-
-.high-contrast body,
-body.high-contrast {
-  background: #fff;
-}
-
-.high-contrast .security-panel,
-.high-contrast .bottom-cart-bar,
-.high-contrast .cart-chip {
-  background: #000 !important;
 }
 
 .sheet-panel {

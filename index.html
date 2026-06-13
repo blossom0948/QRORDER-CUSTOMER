@@ -12,7 +12,7 @@
         <strong id="storeName">매장</strong>
         <span id="tableName">테이블 확인 중</span>
       </div>
-      <button id="openCart" class="cart-chip" type="button">장바구니 <span id="cartCount">0</span></button>
+      <button id="openCart" class="cart-chip" type="button"><span data-i18n="cart">장바구니</span> <span id="cartCount">0</span></button>
     </header>
 
     <main class="customer-shell">
@@ -27,22 +27,22 @@
       <section id="currentOrder" class="current-order" hidden aria-live="polite">
         <div class="current-order-head">
           <div>
-            <p>내 주문 현황</p>
+            <p data-i18n="myOrderStatus">내 주문 현황</p>
             <h2 id="currentOrderTitle">진행 중인 주문</h2>
           </div>
           <span id="currentOrderStatus" class="status-pill">접수</span>
         </div>
         <ol id="progressSteps" class="progress-steps" aria-label="주문 진행 상태">
-          <li data-step="pending">접수</li>
-          <li data-step="cooking">조리중</li>
-          <li data-step="served">완료</li>
+          <li data-step="pending" data-i18n="statusPending">접수</li>
+          <li data-step="cooking" data-i18n="statusCooking">조리중</li>
+          <li data-step="served" data-i18n="statusServed">완료</li>
         </ol>
         <div id="currentOrderItems" class="current-order-items"></div>
         <div class="service-call-row" aria-label="직원 호출">
-          <span>직원 호출</span>
-          <button type="button" data-service="물">물</button>
-          <button type="button" data-service="앞접시">앞접시</button>
-          <button type="button" data-service="냅킨">냅킨</button>
+          <span data-i18n="serviceCall">직원 호출</span>
+          <button type="button" data-service="물" data-i18n="serviceWater">물</button>
+          <button type="button" data-service="앞접시" data-i18n="servicePlate">앞접시</button>
+          <button type="button" data-service="냅킨" data-i18n="serviceNapkin">냅킨</button>
           <small id="serviceNotice" class="service-notice"></small>
         </div>
       </section>
@@ -55,8 +55,7 @@
           <button type="button" data-lang="zh">CN</button>
         </div>
         <div class="assist-switch" aria-label="보기 설정">
-          <button type="button" data-access-mode="large">큰 글씨</button>
-          <button type="button" data-access-mode="contrast">고대비</button>
+          <button type="button" data-access-mode="large" data-i18n="largeText">큰 글씨</button>
         </div>
         <button id="viewPolicy" class="plain-link" type="button">주문/환불 안내</button>
         <small id="languageState">한국어 메뉴 표시</small>
@@ -67,22 +66,22 @@
 
       <section class="menu-area" aria-labelledby="menuTitle">
         <div class="customer-title">
-          <p>QR 주문</p>
+          <p data-i18n="qrOrder">QR 주문</p>
           <h1 id="menuTitle">메뉴</h1>
         </div>
 
         <div id="popularRail" class="popular-rail" hidden></div>
 
         <label class="search-box">
-          메뉴 검색
-          <input id="menuSearch" type="search" placeholder="삼겹살, 찌개, 음료 검색" autocomplete="off" />
+          <span data-i18n="searchLabel">메뉴 검색</span>
+          <input id="menuSearch" type="search" placeholder="삼겹살, 찌개, 음료 검색" autocomplete="off" data-i18n-placeholder="searchPlaceholder" />
         </label>
 
         <div class="category-tabs" role="tablist" aria-label="메뉴 카테고리">
-          <button class="active" type="button" data-category="all">전체</button>
-          <button type="button" data-category="main">메인</button>
-          <button type="button" data-category="side">사이드</button>
-          <button type="button" data-category="drink">음료</button>
+          <button class="active" type="button" data-category="all" data-i18n="categoryAll">전체</button>
+          <button type="button" data-category="main" data-i18n="categoryMain">메인</button>
+          <button type="button" data-category="side" data-i18n="categorySide">사이드</button>
+          <button type="button" data-category="drink" data-i18n="categoryDrink">음료</button>
         </div>
 
         <div id="menuList" class="customer-menu-list" aria-live="polite"></div>
@@ -91,7 +90,7 @@
       <aside id="cartPanel" class="cart-panel" aria-labelledby="cartTitle">
         <div class="panel-head">
           <div>
-            <p>주문 확인</p>
+            <p data-i18n="orderReview">주문 확인</p>
             <h2 id="cartTitle">장바구니</h2>
           </div>
           <button id="clearCart" class="icon-button" type="button" aria-label="장바구니 비우기">×</button>
@@ -100,19 +99,19 @@
         <div id="cartItems" class="cart-items empty">담긴 메뉴가 없습니다.</div>
         <div id="recommendations" class="recommendations" hidden></div>
         <label class="order-note">
-          요청사항
-          <textarea id="orderNote" rows="3" placeholder="예: 덜 맵게 해주세요"></textarea>
+          <span data-i18n="request">요청사항</span>
+          <textarea id="orderNote" rows="3" placeholder="예: 덜 맵게 해주세요" data-i18n-placeholder="requestPlaceholder"></textarea>
         </label>
         <div class="payment-mode" aria-label="결제 방식">
-          <p>결제 방식</p>
+          <p data-i18n="paymentMode">결제 방식</p>
           <div>
-            <button class="active" type="button" data-payment-mode="postpaid">후불</button>
-            <button type="button" data-payment-mode="prepaid">선불 준비</button>
+            <button class="active" type="button" data-payment-mode="postpaid" data-i18n="postpaid">후불</button>
+            <button type="button" data-payment-mode="prepaid" data-i18n="prepaidReady">선불 준비</button>
           </div>
           <small id="paymentModeHint">후불 대면 결제 모드입니다. 식사 후 카운터나 직원에게 결제합니다.</small>
         </div>
         <div class="total-row">
-          <span>합계</span>
+          <span data-i18n="total">합계</span>
           <strong id="cartTotal">0원</strong>
         </div>
         <button id="placeOrder" class="button primary full" type="button">주문하기</button>
@@ -120,13 +119,13 @@
 
       <section id="orderComplete" class="order-complete" hidden aria-live="polite">
         <div>
-          <p>주문 접수 완료</p>
+          <p data-i18n="orderCompleteEyebrow">주문 접수 완료</p>
           <h2 id="completeTitle">주문이 전송되었습니다.</h2>
           <strong id="completeMeta" class="complete-meta"></strong>
           <p id="completeMessage"></p>
           <p id="returnCountdown" class="return-countdown"></p>
         </div>
-        <button id="newOrder" class="button secondary" type="button">추가 주문하기</button>
+        <button id="newOrder" class="button secondary" type="button" data-i18n="newOrder">추가 주문하기</button>
       </section>
     </main>
 
@@ -142,10 +141,10 @@
           <strong id="detailPrice"></strong>
         </div>
         <div class="detail-options">
-          <p>옵션</p>
+          <p data-i18n="option">옵션</p>
           <div id="detailOptions" class="option-chips"></div>
         </div>
-        <button id="detailAdd" class="button primary full" type="button">선택해서 담기</button>
+        <button id="detailAdd" class="button primary full" type="button" data-i18n="detailAdd">선택해서 담기</button>
       </div>
     </section>
 
@@ -154,7 +153,7 @@
         <span id="bottomCartCount">0개 담김</span>
         <strong id="bottomCartTotal">0원</strong>
       </div>
-      <button id="bottomOpenCart" type="button">주문 확인</button>
+      <button id="bottomOpenCart" type="button" data-i18n="orderReview">주문 확인</button>
     </div>
 
     <section id="policySheet" class="policy-sheet" hidden aria-labelledby="policyTitle" aria-modal="true">
@@ -162,14 +161,14 @@
       <div class="sheet-panel policy-panel">
         <button class="sheet-close" type="button" data-close-policy aria-label="안내 닫기">×</button>
         <div>
-          <span class="menu-badge">운영 안내</span>
-          <h2 id="policyTitle">주문·결제·환불 안내</h2>
-          <p>주문 전 장바구니와 옵션을 확인해 주세요. 조리 시작 전에는 직원에게 취소를 요청할 수 있고, 조리 시작 후에는 매장 정책에 따라 처리됩니다.</p>
+          <span class="menu-badge" data-i18n="policyBadge">운영 안내</span>
+          <h2 id="policyTitle" data-i18n="policyTitle">주문·결제·환불 안내</h2>
+          <p data-i18n="policyBody">주문 전 장바구니와 옵션을 확인해 주세요. 조리 시작 전에는 직원에게 취소를 요청할 수 있고, 조리 시작 후에는 매장 정책에 따라 처리됩니다.</p>
         </div>
         <ul class="policy-list">
-          <li><strong>후불</strong><span>식사 후 카운터 또는 직원에게 결제합니다.</span></li>
-          <li><strong>선불 준비</strong><span>PG 연결 시 결제 승인 후 주문이 전송됩니다.</span></li>
-          <li><strong>개인정보</strong><span>이 데모는 테이블 번호와 주문 내역만 브라우저 저장소에 보관합니다.</span></li>
+          <li><strong data-i18n="postpaid">후불</strong><span data-i18n="policyPostpaid">식사 후 카운터 또는 직원에게 결제합니다.</span></li>
+          <li><strong data-i18n="prepaidReady">선불 준비</strong><span data-i18n="policyPrepaid">PG 연결 시 결제 승인 후 주문이 전송됩니다.</span></li>
+          <li><strong data-i18n="privacy">개인정보</strong><span data-i18n="policyPrivacy">이 데모는 테이블 번호와 주문 내역만 브라우저 저장소에 보관합니다.</span></li>
         </ul>
       </div>
     </section>
