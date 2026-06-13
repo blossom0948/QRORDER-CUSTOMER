@@ -1910,14 +1910,14 @@ async function createStoreWithDefaults(storeName, tableCount) {
   renderFirebaseAdminPanel();
 
   const storeRef = doc(storesCollection());
-  const batch = writeBatch(db);
-  batch.set(storeRef, {
+  await setDoc(storeRef, {
     name: storeName,
     ownerUid: state.user.uid,
     createdAt: new Date(),
     updatedAt: new Date(),
   });
 
+  const batch = writeBatch(db);
   defaultMenu.forEach((item, index) => {
     const menu = structuredClone(item);
     menu.sortOrder = index + 1;
@@ -1936,7 +1936,12 @@ async function createStoreWithDefaults(storeName, tableCount) {
     });
   }
 
-  await batch.commit();
+  try {
+    await batch.commit();
+  } catch (error) {
+    await deleteDoc(storeRef).catch(() => {});
+    throw error;
+  }
   await connectAdminStore(storeRef.id);
 }
 
