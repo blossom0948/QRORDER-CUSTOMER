@@ -877,6 +877,11 @@ button:disabled {
   border-left-color: var(--blue);
 }
 
+.order-card.cancelled {
+  background: #fff5f3;
+  border-left-color: #d94c36;
+}
+
 .order-card.is-urgent {
   background: #fffaf3;
   border-color: #efc875;
@@ -937,6 +942,18 @@ button:disabled {
   color: #fff;
   font-weight: 800;
   min-height: 36px;
+}
+
+.order-card-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.order-card-actions button.danger {
+  background: #fff1ed;
+  border: 1px solid #ffd0c4;
+  color: #ad3f2d;
 }
 
 .menu-manager {
@@ -2792,6 +2809,7 @@ button,
 
 .login-card {
   overflow: hidden;
+  max-width: calc(100vw - 32px);
 }
 
 .login-card span,
@@ -2800,6 +2818,18 @@ button,
 .qr-generator-status {
   overflow-wrap: anywhere;
   word-break: keep-all;
+}
+
+@media (max-width: 760px) {
+  .admin-login-gate {
+    padding: 16px;
+  }
+
+  .login-card {
+    justify-self: stretch;
+    max-width: 100%;
+    padding: 22px;
+  }
 }
 
 .store-tools {
@@ -2896,22 +2926,6 @@ button,
   border-radius: 8px;
   display: block;
   min-height: 34px;
-}
-
-.mini-qr-card.sunset {
-  background: #ffb000;
-  color: #fff;
-}
-
-.mini-qr-card.clean {
-  background: #fff;
-  border: 4px solid var(--brand);
-  color: #151515;
-}
-
-.mini-qr-card.night {
-  background: #111827;
-  color: #fff;
 }
 
 .qr-modal {
@@ -3037,34 +3051,6 @@ button,
   width: 100%;
 }
 
-.qr-design-sunset .qr-card-shell {
-  background: #ffb000;
-  color: #fff;
-}
-
-.qr-design-sunset .qr-card-guide {
-  color: #fff8e8;
-}
-
-.qr-design-clean .qr-card-shell {
-  background: #fff;
-  border: 8px solid var(--brand);
-  color: #151515;
-}
-
-.qr-design-clean .qr-card-guide {
-  color: #6b7280;
-}
-
-.qr-design-night .qr-card-shell {
-  background: #111827;
-  color: #fff;
-}
-
-.qr-design-night .qr-card-guide {
-  color: #f9d5cc;
-}
-
 .qr-actions {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -3184,5 +3170,314 @@ body.qr-modal-open {
 
   .bottom-cart-bar strong {
     font-size: 18px;
+  }
+}
+
+/* Owner-first workflow polish */
+body[data-page="customer"].has-active-order .current-order {
+  border-color: #ffc9bb;
+}
+
+body[data-page="customer"] .current-order.is-cancelled {
+  background: #fff5f3;
+  border-color: #ffd0c4;
+}
+
+body[data-page="customer"] .current-order.is-cancelled .status-pill,
+body[data-page="customer"] .current-order.is-cancelled .progress-steps li.is-active::before {
+  background: #d94c36;
+  color: #fff;
+}
+
+body[data-page="customer"] .current-order.is-cancelled .progress-steps li.is-active {
+  background: #fff1ed;
+  border-color: #ffd0c4;
+  color: #ad3f2d;
+}
+
+body[data-page="customer"] .current-order.is-cancelled .service-call-row {
+  display: none;
+}
+
+body[data-page="admin"] .kanban {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+body[data-page="admin"] .order-card-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+body[data-page="admin"] .order-card-actions button {
+  min-width: 0;
+  width: 100%;
+}
+
+body[data-page="admin"] .order-card-actions .danger {
+  background: #fff1ed;
+  border: 1px solid #ffd0c4;
+  color: #ad3f2d;
+}
+
+.qr-tools {
+  display: grid;
+  gap: 12px;
+}
+
+.qr-tool-card {
+  background: #fff;
+  border: 1px solid #e6ddd4;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.qr-tool-card > div > strong,
+.qr-print-head strong {
+  display: block;
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.qr-tool-card span,
+.qr-tool-card small {
+  color: #59635f;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.qr-print-head {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.qr-print-head .button {
+  flex: 0 0 auto;
+}
+
+.mini-qr-card.signature,
+.mini-qr-card.ticket,
+.mini-qr-card.stamp {
+  position: relative;
+  overflow: hidden;
+}
+
+.mini-qr-card.signature {
+  background:
+    radial-gradient(circle at 86% 16%, rgba(255, 255, 255, 0.28) 0 18px, transparent 19px),
+    #ff6f4d;
+  color: #fff;
+}
+
+.mini-qr-card.ticket {
+  background:
+    linear-gradient(90deg, transparent 0 10px, #fff8f1 10px calc(100% - 10px), transparent calc(100% - 10px)),
+    repeating-linear-gradient(0deg, #ff6f4d 0 4px, transparent 4px 10px);
+  border: 2px solid #ff6f4d;
+  color: #111827;
+}
+
+.mini-qr-card.stamp {
+  background:
+    linear-gradient(135deg, rgba(255, 111, 77, 0.16) 0 25%, transparent 25% 50%, rgba(255, 111, 77, 0.16) 50% 75%, transparent 75%) 0 0 / 22px 22px,
+    #fff;
+  border: 2px solid #111827;
+  color: #111827;
+}
+
+.qr-card-shell {
+  position: relative;
+}
+
+.qr-card-pattern {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.qr-card-top,
+.qr-card-title,
+.qr-card-table,
+.qr-preview,
+.qr-card-guide {
+  position: relative;
+  z-index: 1;
+}
+
+.qr-card-top {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.qr-card-top b {
+  font-size: 13px;
+  line-height: 1.2;
+  max-width: 46%;
+  text-align: right;
+}
+
+.qr-card-brand {
+  align-items: center;
+  display: inline-flex;
+  gap: 7px;
+  letter-spacing: 0.2px;
+}
+
+.qr-card-brand span {
+  align-items: center;
+  background: currentColor;
+  border-radius: 999px;
+  color: inherit;
+  display: inline-flex;
+  font-size: 0;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.qr-card-brand span::after {
+  color: var(--brand);
+  content: "Q";
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.qr-card-table {
+  align-self: start;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 900;
+  justify-self: start;
+  padding: 7px 12px;
+}
+
+.qr-design-signature .qr-card-shell {
+  background: #ff6f4d;
+  color: #fff;
+}
+
+.qr-design-signature .qr-card-pattern {
+  background:
+    radial-gradient(circle at 84% 13%, rgba(255, 255, 255, 0.24) 0 44px, transparent 45px),
+    radial-gradient(circle at 12% 90%, rgba(255, 255, 255, 0.18) 0 64px, transparent 65px);
+}
+
+.qr-design-signature .qr-card-table {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.qr-design-signature .qr-card-guide {
+  color: #fff4ee;
+}
+
+.qr-design-ticket .qr-card-shell {
+  background: #fff8f1;
+  color: #111827;
+  border: 7px solid #ff6f4d;
+}
+
+.qr-design-ticket .qr-card-pattern {
+  background:
+    radial-gradient(circle at 0 50%, #faf8f4 0 18px, transparent 19px),
+    radial-gradient(circle at 100% 50%, #faf8f4 0 18px, transparent 19px),
+    linear-gradient(90deg, transparent 0 14px, rgba(255, 111, 77, 0.26) 14px 16px, transparent 16px calc(100% - 16px), rgba(255, 111, 77, 0.26) calc(100% - 16px) calc(100% - 14px), transparent calc(100% - 14px));
+}
+
+.qr-design-ticket .qr-card-table {
+  background: #111827;
+  color: #fff;
+}
+
+.qr-design-ticket .qr-card-guide {
+  color: #59635f;
+}
+
+.qr-design-stamp .qr-card-shell {
+  background: #fff;
+  border: 4px solid #111827;
+  color: #111827;
+}
+
+.qr-design-stamp .qr-card-pattern {
+  background:
+    linear-gradient(135deg, rgba(255, 111, 77, 0.12) 0 25%, transparent 25% 50%, rgba(255, 111, 77, 0.12) 50% 75%, transparent 75%) 0 0 / 34px 34px;
+}
+
+.qr-design-stamp .qr-card-table {
+  background: #ff6f4d;
+  color: #fff;
+}
+
+.qr-design-stamp .qr-card-guide {
+  color: #6b7280;
+}
+
+@media (max-width: 1000px) {
+  body[data-page="admin"] .kanban {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  body[data-page="customer"] .current-order {
+    border-radius: 10px;
+    gap: 10px;
+    order: -1;
+    padding: 13px;
+    position: sticky;
+    top: 68px;
+    z-index: 18;
+  }
+
+  body[data-page="customer"] .current-order-head {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  body[data-page="customer"] .current-order-head h2 {
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  body[data-page="customer"] .progress-steps {
+    gap: 6px;
+  }
+
+  body[data-page="customer"] .progress-steps li {
+    font-size: 13px;
+    justify-content: center;
+    min-height: 36px;
+    padding: 0 8px;
+  }
+
+  body[data-page="customer"] .progress-steps li::before {
+    display: none;
+  }
+
+  body[data-page="customer"] .current-order-items {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+    padding-top: 10px;
+  }
+
+  body[data-page="admin"] .kanban {
+    grid-template-columns: 1fr;
+  }
+
+  .qr-print-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .qr-print-head .button {
+    width: 100%;
   }
 }
