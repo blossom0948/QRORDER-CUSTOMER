@@ -35,7 +35,42 @@ const ACCESS_KEY = "qrorder.access.v1";
 const PAYMENT_KEY = "qrorder.payment.v1";
 const SYNC_CHANNEL = "qrorder.sync.v1";
 const SELECTED_STORE_KEY = "qrorder.selectedStore.v1";
+const QR_DESIGN_KEY = "qrorder.qrDesign.v1";
 const QR_CODE_CDN = "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js";
+const QR_SESSION_EXPIRES_AT = new Date("2099-12-31T23:59:59Z");
+
+const QR_DESIGNS = {
+  sunset: {
+    name: "따뜻한 오렌지",
+    brand: "#ffb000",
+    accent: "#ff6f4d",
+    ink: "#141414",
+    background: "#ffb000",
+    title: "메뉴주문\nQR",
+    subtitle: "카메라로 비추고 주문하세요",
+    footer: "무료 QRORDER",
+  },
+  clean: {
+    name: "깔끔한 흰색",
+    brand: "#ff6f4d",
+    accent: "#121212",
+    ink: "#151515",
+    background: "#ffffff",
+    title: "테이블\n주문",
+    subtitle: "자리에서 바로 주문하세요",
+    footer: "QRORDER",
+  },
+  night: {
+    name: "진한 포인트",
+    brand: "#111827",
+    accent: "#ff6f4d",
+    ink: "#ffffff",
+    background: "#111827",
+    title: "QR\nORDER",
+    subtitle: "스캔 후 메뉴를 고르세요",
+    footer: "무료 테이블 주문",
+  },
+};
 
 const firebaseConfig = {
   apiKey: "AIzaSyCRDZfNLzoruz2NhMhrfk4p3E_AxQDSrR0",
@@ -633,6 +668,8 @@ const state = {
   language: localStorage.getItem(LANG_KEY) || "ko",
   accessMode: localStorage.getItem(ACCESS_KEY) || "default",
   paymentMode: localStorage.getItem(PAYMENT_KEY) || "postpaid",
+  qrDesign: localStorage.getItem(QR_DESIGN_KEY) || "sunset",
+  qrModalOpen: false,
   user: null,
   storeId: "",
   storeName: "",
@@ -743,6 +780,24 @@ function qrSessionsCollection(storeId = state.storeId) {
 
 function qrSessionDoc(token, storeId = state.storeId) {
   return doc(db, "stores", storeId, "qrSessions", token);
+}
+
+function normalizeQrDesign(value) {
+  return QR_DESIGNS[value] ? value : "sunset";
+}
+
+function selectedQrDesign() {
+  return QR_DESIGNS[normalizeQrDesign(state.qrDesign)];
+}
+
+function longLivedQrSession(tableNo) {
+  return {
+    tableNo,
+    active: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    expiresAt: QR_SESSION_EXPIRES_AT,
+  };
 }
 
 function toDate(value) {
@@ -1853,19 +1908,19 @@ function bindAdminFirebaseEvents() {
     await generateMissingQrSessions(tableCount);
   });
 
-  document.querySelector("#printAllQr").addEventListener("click", () => printAllQrCards());
+  document.querySelector("#openQrModal")?.addEventListener("click", openQrModal);
+  document.querySelector("#printAllQr")?.addEventListener("click", () => printAllQrCards());
+  document.querySelectorAll("[data-close-qr-modal]").forEach((button) => {
+    button.addEventListener("click", closeQrModal);
+  });
+  document.querySelectorAll("[name='qrDesign']").forEach((input) => {
+    input.addEventListener("change", () => setQrDesign(input.value));
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && state.qrModalOpen) closeQrModal();
+  });
 
-  document.querySelector("#qrLinks").addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-copy-qr]");
-    if (button) {
-      await navigator.clipboard?.writeText(button.dataset.copyQr);
-      button.textContent = "복사됨";
-      window.setTimeout(() => {
-        button.textContent = "링크 복사";
-      }, 1400);
-      return;
-    }
-
+  document.querySelector("#qrLinks")?.addEventListener("click", async (event) => {
     const printButton = event.target.closest("[data-print-qr]");
     if (printButton) {
       const card = printButton.closest(".qr-link-card");
@@ -1996,6 +2051,8 @@ async function connectAdminStore(storeId) {
     onSnapshot(storeDoc(storeId), (snapshot) => {
       const store = snapshot.data() || {};
       state.storeName = store.name || "매장";
+      state.qrDesign = normalizeQrDesign(store.qrDesign || state.qrDesign);
+      localStorage.setItem(QR_DESIGN_KEY, state.qrDesign);
       state.firebaseStatus = `${state.storeName} Firebase 실시간 연결됨`;
       renderFirebaseAdminPanel();
     }),
@@ -2044,6 +2101,7 @@ async function createStoreWithDefaults(storeName, tableCount) {
       name: storeName,
       ownerUid: state.user.uid,
       ownerEmail: state.user.email || "",
+      qrDesign: normalizeQrDesign(state.qrDesign),
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -2063,12 +2121,7 @@ async function createStoreWithDefaults(storeName, tableCount) {
   for (let i = 1; i <= tableCount; i += 1) {
     const tableNo = String(i).padStart(2, "0");
     const token = randomToken();
-    batch.set(doc(db, "stores", storeRef.id, "qrSessions", token), {
-      tableNo,
-      active: true,
-      createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
-    });
+    batch.set(doc(db, "stores", storeRef.id, "qrSessions", token), longLivedQrSession(tableNo));
   }
 
   try {
@@ -2088,24 +2141,36 @@ async function generateMissingQrSessions(tableCount) {
   state.firebaseStatus = "테이블 QR을 자동 생성 중입니다.";
   renderFirebaseAdminPanel();
 
-  const existingTables = new Set(state.qrSessions.map((session) => String(session.tableNo).padStart(2, "0")));
+  const existingByTable = new Map(
+    state.qrSessions.map((session) => [String(session.tableNo).padStart(2, "0"), session]),
+  );
   const batch = writeBatch(db);
   let created = 0;
+  let refreshed = 0;
 
   for (let i = 1; i <= tableCount; i += 1) {
     const tableNo = String(i).padStart(2, "0");
-    if (existingTables.has(tableNo)) continue;
+    const existing = existingByTable.get(tableNo);
+    if (existing?.token) {
+      batch.set(
+        qrSessionDoc(existing.token),
+        {
+          tableNo,
+          active: true,
+          updatedAt: new Date(),
+          expiresAt: QR_SESSION_EXPIRES_AT,
+        },
+        { merge: true },
+      );
+      refreshed += 1;
+      continue;
+    }
     const token = randomToken();
-    batch.set(doc(db, "stores", state.storeId, "qrSessions", token), {
-      tableNo,
-      active: true,
-      createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
-    });
+    batch.set(doc(db, "stores", state.storeId, "qrSessions", token), longLivedQrSession(tableNo));
     created += 1;
   }
 
-  if (!created) {
+  if (!created && !refreshed) {
     const message = `이미 ${tableCount}개 테이블 QR이 준비되어 있습니다.`;
     if (status) status.textContent = message;
     state.firebaseStatus = message;
@@ -2115,13 +2180,53 @@ async function generateMissingQrSessions(tableCount) {
 
   try {
     await batch.commit();
-    const message = `${created}개 테이블 QR을 새로 생성했습니다.`;
+    const message = created
+      ? `${created}개 QR을 새로 만들고 기존 QR ${refreshed}개를 오래 쓸 수 있게 확인했습니다.`
+      : `${refreshed}개 테이블 QR이 계속 사용할 수 있게 확인되었습니다.`;
     if (status) status.textContent = message;
     state.firebaseStatus = message;
     renderFirebaseAdminPanel();
   } catch (error) {
     console.error(error);
     const message = "QR 생성 권한이 막혔습니다. Firebase Rules 게시 상태를 확인해 주세요.";
+    if (status) status.textContent = message;
+    state.firebaseStatus = message;
+    renderFirebaseAdminPanel();
+  }
+}
+
+function openQrModal() {
+  state.qrModalOpen = true;
+  const modal = document.querySelector("#qrModal");
+  if (modal) modal.hidden = false;
+  document.body.classList.add("qr-modal-open");
+  renderQrLinks();
+}
+
+function closeQrModal() {
+  state.qrModalOpen = false;
+  const modal = document.querySelector("#qrModal");
+  if (modal) modal.hidden = true;
+  document.body.classList.remove("qr-modal-open");
+}
+
+async function setQrDesign(value) {
+  state.qrDesign = normalizeQrDesign(value);
+  localStorage.setItem(QR_DESIGN_KEY, state.qrDesign);
+  renderQrDesignPicker();
+  renderQrLinks();
+  if (!state.storeId) return;
+  try {
+    await updateDoc(storeDoc(), {
+      qrDesign: state.qrDesign,
+      updatedAt: new Date(),
+    });
+    state.firebaseStatus = `${selectedQrDesign().name} QR 디자인으로 저장되었습니다.`;
+    renderFirebaseAdminPanel();
+  } catch (error) {
+    console.error(error);
+    const status = document.querySelector("#qrGeneratorStatus");
+    const message = "QR 디자인 저장 권한이 막혔습니다. Firestore Rules를 확인해 주세요.";
     if (status) status.textContent = message;
     state.firebaseStatus = message;
     renderFirebaseAdminPanel();
@@ -2153,14 +2258,48 @@ function renderFirebaseAdminPanel() {
   if (qrTableInput && document.activeElement !== qrTableInput) {
     qrTableInput.value = Math.max(10, state.qrSessions.length || Number(qrTableInput.value) || 10);
   }
+  renderQrSummary();
+  renderQrDesignPicker();
   renderQrLinks();
+}
+
+function renderQrSummary() {
+  const summary = document.querySelector("#qrSummaryText");
+  const openButton = document.querySelector("#openQrModal");
+  const count = state.qrSessions.length;
+  if (summary) {
+    summary.textContent = count
+      ? `${count}개 QR 준비됨 · ${selectedQrDesign().name} 디자인 · 다시 로그인해도 그대로 유지됩니다.`
+      : "테이블 수를 입력하고 QR 자동 생성을 누르면 사장님 계정에 저장됩니다.";
+  }
+  if (openButton) {
+    openButton.disabled = count === 0;
+    openButton.textContent = count ? `QR 보기 ${count}개` : "QR 보기";
+  }
+}
+
+function renderQrDesignPicker() {
+  const design = normalizeQrDesign(state.qrDesign);
+  document.querySelectorAll("[name='qrDesign']").forEach((input) => {
+    input.checked = input.value === design;
+  });
+  document.querySelectorAll("[data-qr-design-card]").forEach((card) => {
+    card.classList.toggle("active", card.dataset.qrDesignCard === design);
+  });
 }
 
 function renderQrLinks() {
   const box = document.querySelector("#qrLinks");
   if (!box) return;
+  const modal = document.querySelector("#qrModal");
+  if (modal) modal.hidden = !state.qrModalOpen;
+  document.body.classList.toggle("qr-modal-open", state.qrModalOpen);
+  if (!state.qrModalOpen) {
+    box.innerHTML = "";
+    return;
+  }
   if (!state.qrSessions.length) {
-    box.innerHTML = '<div class="empty-column">QR 링크 없음</div>';
+    box.innerHTML = '<div class="empty-column">아직 생성된 QR이 없습니다.</div>';
     return;
   }
 
@@ -2168,19 +2307,21 @@ function renderQrLinks() {
     .map((session) => {
       const url = qrUrlFor(session);
       const tableLabel = `${Number(session.tableNo) || session.tableNo}번 테이블`;
+      const design = normalizeQrDesign(state.qrDesign);
+      const designData = QR_DESIGNS[design];
+      const title = designData.title.split("\n").map(escapeHtml).join("<br />");
       return `
-        <article class="qr-link-card" data-qr-card data-table-label="${escapeAttr(tableLabel)}">
-          <div class="qr-card-head">
-            <strong>${escapeHtml(tableLabel)}</strong>
-            <span>손님용 QR</span>
+        <article class="qr-link-card qr-design-${escapeAttr(design)}" data-qr-card data-table-label="${escapeAttr(tableLabel)}" data-qr-design="${escapeAttr(design)}">
+          <div class="qr-card-shell">
+            <div class="qr-card-brand">${escapeHtml(state.storeName || "QRORDER")}</div>
+            <strong class="qr-card-title">${title}</strong>
+            <div class="qr-preview" data-qr-url="${escapeAttr(url)}">
+              <span>QR 생성 중</span>
+            </div>
+            <p class="qr-card-guide">${escapeHtml(tableLabel)} · ${escapeHtml(designData.subtitle)}</p>
           </div>
-          <div class="qr-preview" data-qr-url="${escapeAttr(url)}">
-            <span>QR 생성 중</span>
-          </div>
-          <a class="qr-url" href="${escapeAttr(url)}" target="_blank" rel="noreferrer">${escapeHtml(url)}</a>
           <div class="qr-actions">
-            <button type="button" data-copy-qr="${escapeAttr(url)}">링크 복사</button>
-            <a class="qr-download disabled" data-qr-download href="#" download="qrorder-${escapeAttr(String(session.tableNo))}.png">PNG 다운로드</a>
+            <a class="qr-download disabled" data-qr-download href="#" download="qrorder-table-${escapeAttr(String(session.tableNo))}.png">PNG 저장</a>
             <button type="button" data-print-qr>인쇄</button>
           </div>
         </article>
@@ -2192,7 +2333,7 @@ function renderQrLinks() {
 }
 
 async function renderQrImages() {
-  const previews = [...document.querySelectorAll("[data-qr-url]")];
+  const previews = [...document.querySelectorAll(".qr-preview[data-qr-url]")];
   if (!previews.length) return;
 
   try {
@@ -2208,7 +2349,9 @@ async function renderQrImages() {
         const card = preview.closest("[data-qr-card]");
         const download = card?.querySelector("[data-qr-download]");
         if (download) {
-          download.href = dataUrl;
+          const tableLabel = card?.dataset.tableLabel || "테이블 QR";
+          const design = normalizeQrDesign(card?.dataset.qrDesign || state.qrDesign);
+          download.href = await createQrCardPng(dataUrl, tableLabel, design);
           download.classList.remove("disabled");
         }
       }),
@@ -2216,16 +2359,83 @@ async function renderQrImages() {
   } catch (error) {
     console.error(error);
     previews.forEach((preview) => {
-      preview.innerHTML = "<span>QR 생성 실패<br />링크를 복사해 사용하세요</span>";
+      preview.innerHTML = "<span>QR 생성 실패<br />새로고침 후 다시 열어 주세요</span>";
     });
   }
+}
+
+async function createQrCardPng(qrSrc, tableLabel, designName = state.qrDesign) {
+  const design = QR_DESIGNS[normalizeQrDesign(designName)];
+  const canvas = document.createElement("canvas");
+  canvas.width = 720;
+  canvas.height = 1080;
+  const ctx = canvas.getContext("2d");
+  const qrImage = await loadImage(qrSrc);
+  const isClean = normalizeQrDesign(designName) === "clean";
+  const isNight = normalizeQrDesign(designName) === "night";
+
+  ctx.fillStyle = design.background;
+  roundedRect(ctx, 0, 0, canvas.width, canvas.height, 48);
+  ctx.fill();
+
+  if (isClean) {
+    ctx.strokeStyle = design.brand;
+    ctx.lineWidth = 18;
+    roundedRect(ctx, 34, 34, canvas.width - 68, canvas.height - 68, 38);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = design.ink;
+  ctx.font = "900 42px Arial, sans-serif";
+  ctx.fillText(state.storeName || "QRORDER", 70, 96);
+  ctx.font = "900 104px Arial, sans-serif";
+  const titleLines = design.title.split("\n");
+  titleLines.forEach((line, index) => {
+    ctx.fillText(line, 70, 210 + index * 116);
+  });
+
+  ctx.fillStyle = isClean ? "#f7f7f7" : "#ffffff";
+  roundedRect(ctx, 105, 430, 510, 510, 42);
+  ctx.fill();
+  ctx.drawImage(qrImage, 145, 470, 430, 430);
+
+  ctx.fillStyle = isNight ? "#ffffff" : design.ink;
+  ctx.font = "900 34px Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(tableLabel, canvas.width / 2, 980);
+  ctx.font = "800 25px Arial, sans-serif";
+  ctx.fillStyle = isNight ? "#f9d5cc" : isClean ? "#6b7280" : "#fff8e8";
+  ctx.fillText(design.subtitle, canvas.width / 2, 1026);
+  ctx.textAlign = "left";
+
+  return canvas.toDataURL("image/png");
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+function roundedRect(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+  ctx.closePath();
 }
 
 function printQrCard(card) {
   if (!card) return;
   const image = card.querySelector(".qr-preview img");
-  const url = card.querySelector(".qr-url")?.textContent || "";
   const tableLabel = card.dataset.tableLabel || "테이블 QR";
+  const designName = normalizeQrDesign(card.dataset.qrDesign || state.qrDesign);
   if (!image?.src) return;
 
   const printWindow = window.open("", "_blank", "width=420,height=620");
@@ -2236,31 +2446,10 @@ function printQrCard(card) {
       <head>
         <meta charset="utf-8" />
         <title>${escapeHtml(tableLabel)} QR</title>
-        <style>
-          * { box-sizing: border-box; }
-          body { align-items: center; background: #f6f7f4; display: grid; font-family: Arial, sans-serif; justify-items: center; margin: 0; min-height: 100vh; padding: 22px; text-align: center; }
-          main { background: #fff; border: 2px solid #191919; border-radius: 18px; overflow: hidden; width: min(100%, 360px); }
-          header { background: #ff6f4d; color: #fff; padding: 18px 16px; }
-          small { display: block; font-size: 12px; font-weight: 800; letter-spacing: 1px; }
-          h1 { font-size: 34px; line-height: 1; margin: 6px 0 0; }
-          .body { display: grid; gap: 12px; justify-items: center; padding: 22px 20px 18px; }
-          img { height: 240px; width: 240px; }
-          strong { color: #191919; display: block; font-size: 18px; }
-          p { color: #555; font-size: 11px; line-height: 1.35; margin: 0; overflow-wrap: anywhere; }
-        </style>
+        <style>${qrPrintStyles()}</style>
       </head>
       <body>
-        <main>
-          <header>
-            <small>${escapeHtml(state.storeName || "QRORDER")}</small>
-            <h1>${escapeHtml(tableLabel)}</h1>
-          </header>
-          <div class="body">
-            <strong>카메라로 비추고 주문하세요</strong>
-            <img src="${escapeAttr(image.src)}" alt="${escapeAttr(tableLabel)} QR" />
-            <p>${escapeHtml(url)}</p>
-          </div>
-        </main>
+        ${qrPrintCardHtml(tableLabel, image.src, designName)}
         <script>
           window.addEventListener("load", () => {
             window.print();
@@ -2279,17 +2468,7 @@ function printAllQrCards() {
       const image = card.querySelector(".qr-preview img");
       if (!image?.src) return "";
       const tableLabel = card.dataset.tableLabel || "테이블 QR";
-      const url = card.querySelector(".qr-url")?.textContent || "";
-      return `
-        <section class="qr-print-card">
-          <h2>${escapeHtml(tableLabel)}</h2>
-          <div>
-            <strong>카메라로 비추고 주문하세요</strong>
-            <img src="${escapeAttr(image.src)}" alt="${escapeAttr(tableLabel)} QR" />
-            <p>${escapeHtml(url)}</p>
-          </div>
-        </section>
-      `;
+      return qrPrintCardHtml(tableLabel, image.src, card.dataset.qrDesign || state.qrDesign);
     })
     .filter(Boolean)
     .join("");
@@ -2303,19 +2482,7 @@ function printAllQrCards() {
       <head>
         <meta charset="utf-8" />
         <title>${escapeHtml(state.storeName || "매장")} 전체 QR</title>
-        <style>
-          * { box-sizing: border-box; }
-          body { background: #fff; font-family: Arial, sans-serif; margin: 0; padding: 16px; }
-          h1 { color: #191919; font-size: 20px; margin: 0 0 12px; }
-          .qr-print-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .qr-print-card { border: 2px solid #191919; border-radius: 14px; display: grid; min-height: 360px; overflow: hidden; page-break-inside: avoid; text-align: center; }
-          .qr-print-card h2 { background: #ff6f4d; color: #fff; font-size: 28px; margin: 0; padding: 15px 10px; }
-          .qr-print-card div { display: grid; gap: 9px; justify-items: center; padding: 14px; }
-          .qr-print-card strong { font-size: 17px; }
-          .qr-print-card img { height: 210px; width: 210px; }
-          .qr-print-card p { color: #555; font-size: 9px; line-height: 1.35; margin: 0; overflow-wrap: anywhere; }
-          @media print { body { padding: 0; } .qr-print-grid { gap: 7px; } .qr-print-card { border-radius: 0; } }
-        </style>
+        <style>${qrPrintStyles()}</style>
       </head>
       <body>
         <h1>${escapeHtml(state.storeName || "매장")} 테이블 QR</h1>
@@ -2327,6 +2494,52 @@ function printAllQrCards() {
     </html>
   `);
   printWindow.document.close();
+}
+
+function qrPrintCardHtml(tableLabel, qrSrc, designName) {
+  const design = normalizeQrDesign(designName);
+  const designData = QR_DESIGNS[design];
+  const title = designData.title.split("\n").map(escapeHtml).join("<br />");
+  return `
+    <section class="qr-print-card qr-print-${escapeAttr(design)}">
+      <div class="qr-print-brand">${escapeHtml(state.storeName || "QRORDER")}</div>
+      <h2>${title}</h2>
+      <div class="qr-print-code">
+        <img src="${escapeAttr(qrSrc)}" alt="${escapeAttr(tableLabel)} QR" />
+      </div>
+      <strong>${escapeHtml(tableLabel)}</strong>
+      <p>${escapeHtml(designData.subtitle)}</p>
+    </section>
+  `;
+}
+
+function qrPrintStyles() {
+  return `
+    * { box-sizing: border-box; }
+    body { align-items: center; background: #fff; display: grid; font-family: Arial, sans-serif; justify-items: center; margin: 0; min-height: 100vh; padding: 16px; }
+    body > h1 { color: #191919; font-size: 20px; margin: 0 0 12px; width: 100%; }
+    .qr-print-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+    .qr-print-card { border-radius: 28px; display: grid; gap: 10px; min-height: 520px; overflow: hidden; page-break-inside: avoid; padding: 28px; text-align: left; width: min(100%, 360px); }
+    .qr-print-grid .qr-print-card { min-height: 440px; width: 100%; }
+    .qr-print-brand { font-size: 18px; font-weight: 900; }
+    .qr-print-card h2 { font-size: 54px; line-height: .98; margin: 4px 0 12px; }
+    .qr-print-code { align-items: center; background: #fff; border-radius: 24px; display: grid; justify-items: center; justify-self: center; padding: 18px; }
+    .qr-print-card img { display: block; height: 230px; width: 230px; }
+    .qr-print-grid .qr-print-card img { height: 190px; width: 190px; }
+    .qr-print-card strong { align-self: end; font-size: 26px; font-weight: 900; text-align: center; }
+    .qr-print-card p { font-size: 16px; font-weight: 800; margin: 0; text-align: center; }
+    .qr-print-sunset { background: #ffb000; color: #fff; }
+    .qr-print-clean { background: #fff; border: 8px solid #ff6f4d; color: #151515; }
+    .qr-print-clean p { color: #6b7280; }
+    .qr-print-night { background: #111827; color: #fff; }
+    .qr-print-night .qr-print-code { background: #fff; }
+    .qr-print-night p { color: #f9d5cc; }
+    @media print {
+      body { display: block; min-height: 0; padding: 0; }
+      .qr-print-grid { gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .qr-print-card { break-inside: avoid; }
+    }
+  `;
 }
 
 function bindAdminEvents() {
