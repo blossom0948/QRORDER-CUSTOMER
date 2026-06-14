@@ -49,7 +49,7 @@ const QR_DESIGNS = {
     paper: "#ffffff",
     title: "메뉴\n주문",
     subtitle: "카메라로 비추고 바로 주문",
-    footer: "QRORDER",
+    footer: "ORDERON",
   },
   ticket: {
     name: "매장 티켓",
@@ -71,7 +71,7 @@ const QR_DESIGNS = {
     paper: "#fff4ec",
     title: "바로\n주문",
     subtitle: "스캔하고 메뉴를 선택하세요",
-    footer: "QRORDER",
+    footer: "ORDERON",
   },
 };
 
@@ -2280,6 +2280,13 @@ function renderFirebaseAdminPanel() {
   document.querySelector("#adminUserLabel").textContent = state.user?.displayName || state.user?.email || "";
   document.querySelector("#createStoreForm").hidden = !isSignedIn || hasStore;
   document.querySelector("#storeTools").hidden = !hasStore;
+  document.querySelector("#todayHistorySection").hidden = !hasStore;
+  document.querySelector("#soldoutQuickSection").hidden = !hasStore;
+  document.querySelector("#menuManagePanel").hidden = !hasStore;
+  document.querySelectorAll("[data-admin-jump]").forEach((button) => {
+    const needsStore = button.dataset.adminJump !== "orderBoardSection";
+    button.disabled = needsStore && !hasStore;
+  });
   const qrTableInput = document.querySelector("[name='qrTableCount']");
   if (qrTableInput && document.activeElement !== qrTableInput) {
     qrTableInput.value = Math.max(10, state.qrSessions.length || Number(qrTableInput.value) || 10);
@@ -2341,7 +2348,7 @@ function renderQrLinks() {
           <div class="qr-card-shell">
             <div class="qr-card-pattern" aria-hidden="true"></div>
             <div class="qr-card-top">
-              <div class="qr-card-brand"><span>Q</span> QRORDER</div>
+            <div class="qr-card-brand"><span>O</span> ORDERON</div>
               <b>${escapeHtml(state.storeName || "우리 매장")}</b>
             </div>
             <strong class="qr-card-title">${title}</strong>
@@ -2433,7 +2440,7 @@ async function createQrCardPng(qrSrc, tableLabel, designName = state.qrDesign) {
 
   ctx.fillStyle = design.ink;
   ctx.font = "900 34px Arial, sans-serif";
-  ctx.fillText("Q QRORDER", 70, 88);
+  ctx.fillText("O ORDERON", 70, 88);
   ctx.font = "800 28px Arial, sans-serif";
   ctx.textAlign = "right";
   ctx.fillText(state.storeName || "우리 매장", 650, 88);
@@ -2558,7 +2565,7 @@ function qrPrintCardHtml(tableLabel, qrSrc, designName) {
   return `
     <section class="qr-print-card qr-print-${escapeAttr(design)}">
       <div class="qr-print-top">
-        <div class="qr-print-brand">Q QRORDER</div>
+        <div class="qr-print-brand">O ORDERON</div>
         <b>${escapeHtml(state.storeName || "우리 매장")}</b>
       </div>
       <h2>${title}</h2>
@@ -2665,6 +2672,13 @@ function bindAdminEvents() {
     }
   });
 
+  document.querySelectorAll("[data-admin-jump]").forEach((button) => {
+    button.addEventListener("click", () => jumpAdminSection(button.dataset.adminJump));
+  });
+  document.querySelector("#soldoutQuickList")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-quick-sold]");
+    if (button) toggleSoldOutQuick(button.dataset.quickSold);
+  });
   document.querySelector("#seedOrder").addEventListener("click", seedOrder);
   document.querySelector("#addMenuForm").addEventListener("submit", addMenuItem);
   document.querySelector("#toggleSound").addEventListener("click", () => {
@@ -2713,9 +2727,23 @@ function renderAdmin() {
   renderMetrics();
   renderAlertPanel();
   renderOrderBoard();
+  renderTodayHistory();
+  renderSoldoutQuickList();
   renderMenuManager();
   renderBoardHint();
   renderSystemStatus();
+}
+
+function jumpAdminSection(targetId) {
+  if (targetId === "menuManagePanel") {
+    document.querySelector("#menuManagePanel")?.setAttribute("open", "");
+  }
+  document.querySelectorAll("[data-admin-jump]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.adminJump === targetId);
+  });
+  const target = document.getElementById(targetId);
+  if (!target || target.hidden) return;
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function renderMetrics() {
@@ -2729,7 +2757,7 @@ function renderMetrics() {
 
   const activeTables = new Set(
     state.orders
-      .filter((order) => order.status !== "served")
+      .filter((order) => order.status !== "served" && order.status !== "cancelled")
       .map((order) => String(order.table)),
   );
   const pendingService = state.orders.filter((order) => order.status === "pending" && order.service).length;
@@ -2767,6 +2795,90 @@ function renderSystemStatus() {
 
 function countOrders(status) {
   return String(state.orders.filter((order) => order.status === status).length);
+}
+
+function isToday(value) {
+  const date = new Date(value);
+  const now = new Date();
+  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+}
+
+function formatOrderTime(value) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function renderTodayHistory() {
+  const list = document.querySelector("#todayHistory");
+  const stats = document.querySelector("#todayHistoryStats");
+  if (!list || !stats) return;
+
+  const todayOrders = state.orders
+    .filter((order) => isToday(order.createdAt))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const sales = todayOrders
+    .filter((order) => order.status !== "cancelled")
+    .reduce((sum, order) => sum + Number(order.total || 0), 0);
+  const cancelled = todayOrders.filter((order) => order.status === "cancelled").length;
+
+  stats.innerHTML = `
+    <div><span>오늘 주문</span><strong>${todayOrders.length}건</strong></div>
+    <div><span>오늘 매출</span><strong>${formatMoney(sales)}</strong></div>
+    <div><span>취소</span><strong>${cancelled}건</strong></div>
+  `;
+
+  if (!todayOrders.length) {
+    list.innerHTML = '<div class="empty-column">오늘 주문 내역이 없습니다.</div>';
+    return;
+  }
+
+  list.innerHTML = todayOrders
+    .map((order) => {
+      const itemText = order.items.map((item) => `${item.name} ${item.qty}개`).join(", ");
+      const reason = order.cancelReason ? `<small>취소 사유: ${escapeHtml(order.cancelReason)}</small>` : "";
+      return `
+        <article class="history-row ${escapeAttr(order.status)}">
+          <div>
+            <strong>${Number(order.table) || order.table}번 테이블</strong>
+            <span>${escapeHtml(itemText)}</span>
+            ${reason}
+          </div>
+          <div>
+            <b>${statusLabel(order.status)}</b>
+            <small>${formatOrderTime(order.createdAt)}</small>
+            <strong>${formatMoney(order.total || 0)}</strong>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function renderSoldoutQuickList() {
+  const box = document.querySelector("#soldoutQuickList");
+  if (!box) return;
+  if (!state.menu.length) {
+    box.innerHTML = '<div class="empty-column">메뉴를 먼저 추가해 주세요.</div>';
+    return;
+  }
+  box.innerHTML = state.menu
+    .map((item) => `
+      <button class="${item.soldOut ? "is-soldout" : ""}" type="button" data-quick-sold="${escapeAttr(item.id)}">
+        <span>${escapeHtml(item.name)}</span>
+        <strong>${item.soldOut ? "품절" : "판매중"}</strong>
+      </button>
+    `)
+    .join("");
+}
+
+function toggleSoldOutQuick(id) {
+  const item = state.menu.find((entry) => entry.id === id);
+  if (!item) return;
+  updateMenuField(id, "soldOut", !item.soldOut, false);
+  renderSoldoutQuickList();
+  renderMenuManager();
 }
 
 function renderAlertPanel(latestOrder = null) {
@@ -2843,6 +2955,7 @@ function renderOrderCard(order, column) {
   const minutes = minutesSince(order.createdAt);
   const waitClass = order.status === "pending" && minutes >= 10 ? "is-urgent" : "";
   const note = order.note ? `<p class="order-note-line">요청: ${escapeHtml(order.note)}</p>` : "";
+  const cancelReason = order.cancelReason ? `<p class="cancel-reason-line">취소 사유: ${escapeHtml(order.cancelReason)}</p>` : "";
   const orderNo = order.orderNo ? `<small>주문번호 ${escapeHtml(order.orderNo)}</small>` : "";
   const serviceBadge = order.service ? '<span class="service-badge">직원 호출</span>' : "";
   const paymentBadge = '<span class="payment-badge">후불</span>';
@@ -2861,6 +2974,7 @@ function renderOrderCard(order, column) {
       </div>
       <ul>${itemList}</ul>
       ${note}
+      ${cancelReason}
       <div class="order-card-actions">
         <button type="button" data-status="${escapeAttr(order.id)}">${column.action}</button>
         ${cancelButton}
@@ -2897,12 +3011,16 @@ function moveOrder(orderId) {
 function cancelOrder(orderId) {
   const order = state.orders.find((entry) => entry.id === orderId);
   if (!order || order.status === "served" || order.status === "cancelled") return;
+  const reason = window.prompt("취소 사유를 적어 주세요.", order.service ? "직원 호출 처리 완료" : "재료 소진");
+  if (reason === null) return;
   order.status = "cancelled";
   order.cancelledAt = new Date();
+  order.cancelReason = reason.trim() || "사장님 취소";
 
   if (state.firebaseMode === "admin" && state.storeId) {
     updateDoc(orderDoc(orderId), {
       status: "cancelled",
+      cancelReason: order.cancelReason,
       cancelledAt: new Date(),
       updatedAt: new Date(),
     }).catch(console.error);
