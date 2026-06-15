@@ -673,6 +673,7 @@ const state = {
   orderLocked: false,
   soundEnabled: false,
   audioContext: null,
+  adminView: "orders",
   adminOrderFilter: "all",
   knownPendingIds: new Set(),
   lastAlertMessage: "",
@@ -2279,14 +2280,7 @@ function renderFirebaseAdminPanel() {
   document.querySelector("#adminSession").hidden = !isSignedIn;
   document.querySelector("#adminUserLabel").textContent = state.user?.displayName || state.user?.email || "";
   document.querySelector("#createStoreForm").hidden = !isSignedIn || hasStore;
-  document.querySelector("#storeTools").hidden = !hasStore;
-  document.querySelector("#todayHistorySection").hidden = !hasStore;
-  document.querySelector("#soldoutQuickSection").hidden = !hasStore;
-  document.querySelector("#menuManagePanel").hidden = !hasStore;
-  document.querySelectorAll("[data-admin-jump]").forEach((button) => {
-    const needsStore = button.dataset.adminJump !== "orderBoardSection";
-    button.disabled = needsStore && !hasStore;
-  });
+  renderAdminView();
   const qrTableInput = document.querySelector("[name='qrTableCount']");
   if (qrTableInput && document.activeElement !== qrTableInput) {
     qrTableInput.value = Math.max(10, state.qrSessions.length || Number(qrTableInput.value) || 10);
@@ -2672,8 +2666,8 @@ function bindAdminEvents() {
     }
   });
 
-  document.querySelectorAll("[data-admin-jump]").forEach((button) => {
-    button.addEventListener("click", () => jumpAdminSection(button.dataset.adminJump));
+  document.querySelectorAll("[data-admin-view]").forEach((button) => {
+    button.addEventListener("click", () => setAdminView(button.dataset.adminView));
   });
   document.querySelector("#soldoutQuickList")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-quick-sold]");
@@ -2732,18 +2726,32 @@ function renderAdmin() {
   renderMenuManager();
   renderBoardHint();
   renderSystemStatus();
+  renderAdminView();
 }
 
-function jumpAdminSection(targetId) {
-  if (targetId === "menuManagePanel") {
-    document.querySelector("#menuManagePanel")?.setAttribute("open", "");
-  }
-  document.querySelectorAll("[data-admin-jump]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.adminJump === targetId);
+function setAdminView(view) {
+  state.adminView = ["orders", "qr", "menu"].includes(view) ? view : "orders";
+  renderAdminView();
+}
+
+function renderAdminView() {
+  const hasStore = Boolean(state.storeId);
+  if (!hasStore) state.adminView = "orders";
+
+  document.querySelectorAll("[data-admin-view]").forEach((button) => {
+    const needsStore = button.dataset.adminView !== "orders";
+    button.disabled = needsStore && !hasStore;
+    button.classList.toggle("active", button.dataset.adminView === state.adminView);
   });
-  const target = document.getElementById(targetId);
-  if (!target || target.hidden) return;
-  target.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  document.querySelectorAll("[data-admin-panel]").forEach((panel) => {
+    const canShow = hasStore || panel.dataset.adminPanel === "orders";
+    panel.hidden = !canShow || panel.dataset.adminPanel !== state.adminView;
+    panel.classList.toggle("active", !panel.hidden);
+  });
+
+  const setupPanel = document.querySelector("#storeSetupPanel");
+  if (setupPanel) setupPanel.hidden = hasStore || state.adminView !== "orders";
 }
 
 function renderMetrics() {

@@ -2009,6 +2009,10 @@ body[data-page="admin"] .menu-manage-panel {
   padding: 0;
 }
 
+body[data-page="admin"] .menu-view .menu-manage-panel {
+  display: block;
+}
+
 body[data-page="admin"] .menu-manage-panel summary {
   align-items: center;
   cursor: pointer;
@@ -3593,6 +3597,15 @@ body[data-page="admin"] .admin-header .brand-heading h1 {
   scroll-margin-top: 96px;
 }
 
+.admin-view {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-view[hidden] {
+  display: none !important;
+}
+
 .today-history-panel,
 .soldout-panel,
 .qr-tools-panel {
@@ -3600,6 +3613,16 @@ body[data-page="admin"] .admin-header .brand-heading h1 {
   border: 1px solid #ebe6de;
   border-radius: 8px;
   padding: 16px;
+}
+
+.menu-view {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.menu-view .soldout-panel {
+  margin-bottom: 14px;
 }
 
 .today-stats {
