@@ -466,6 +466,14 @@ const menuGlossary = {
     "추천": "Recommended",
     "인기": "Popular",
     "요청": "request",
+    "대표": "Signature",
+    "한정": "Limited",
+    "매콤": "Spicy",
+    "제로": "Zero",
+    "숙성": "aged",
+    "스테이크": "steak",
+    "돼지고기": "pork",
+    "김치": "kimchi",
     "기본": "Default",
     "덜 맵게": "Less spicy",
     "맵게": "Spicy",
@@ -479,6 +487,13 @@ const menuGlossary = {
     "빨대 필요": "Need straw",
     "덜 익힘": "Less cooked",
     "바싹 익힘": "Well done",
+    "양념 추가": "Extra marinade",
+    "소금 추가": "Extra salt",
+    "식초 빼기": "No vinegar",
+    "겨자 빼기": "No mustard",
+    "곱빼기": "Large size",
+    "밥 적게": "Less rice",
+    "밥 많이": "Extra rice",
     "앞접시 필요": "Need small plate",
     "공깃밥 추가": "Add rice",
     "새 메뉴": "New menu",
@@ -525,6 +540,14 @@ const menuGlossary = {
     "추천": "おすすめ",
     "인기": "人気",
     "요청": "リクエスト",
+    "대표": "代表",
+    "한정": "限定",
+    "매콤": "辛口",
+    "제로": "ゼロ",
+    "숙성": "熟成",
+    "스테이크": "ステーキ",
+    "돼지고기": "豚肉",
+    "김치": "キムチ",
     "기본": "基本",
     "덜 맵게": "辛さ控えめ",
     "맵게": "辛く",
@@ -538,6 +561,13 @@ const menuGlossary = {
     "빨대 필요": "ストロー必要",
     "덜 익힘": "軽めに焼く",
     "바싹 익힘": "しっかり焼く",
+    "양념 추가": "タレ追加",
+    "소금 추가": "塩追加",
+    "식초 빼기": "酢抜き",
+    "겨자 빼기": "からし抜き",
+    "곱빼기": "大盛り",
+    "밥 적게": "ご飯少なめ",
+    "밥 많이": "ご飯多め",
     "앞접시 필요": "取り皿必要",
     "공깃밥 추가": "ライス追加",
     "새 메뉴": "新メニュー",
@@ -584,6 +614,14 @@ const menuGlossary = {
     "추천": "推荐",
     "인기": "热门",
     "요청": "请求",
+    "대표": "招牌",
+    "한정": "限定",
+    "매콤": "微辣",
+    "제로": "零糖",
+    "숙성": "熟成",
+    "스테이크": "牛排风",
+    "돼지고기": "猪肉",
+    "김치": "泡菜",
     "기본": "默认",
     "덜 맵게": "少辣",
     "맵게": "辣",
@@ -597,6 +635,13 @@ const menuGlossary = {
     "빨대 필요": "需要吸管",
     "덜 익힘": "少烤",
     "바싹 익힘": "全熟",
+    "양념 추가": "加酱料",
+    "소금 추가": "加盐",
+    "식초 빼기": "不要醋",
+    "겨자 빼기": "不要芥末",
+    "곱빼기": "加量",
+    "밥 적게": "少饭",
+    "밥 많이": "多饭",
     "앞접시 필요": "需要小盘",
     "공깃밥 추가": "加米饭",
     "새 메뉴": "新菜品",
@@ -627,6 +672,17 @@ const defaultMenu = [
     soldOut: false,
   },
   {
+    id: "kimchi-stew",
+    category: "side",
+    name: "돼지고기 김치찌개",
+    desc: "칼칼한 김치와 돼지고기를 푹 끓인 식사 메뉴",
+    price: 8500,
+    image: "https://images.unsplash.com/photo-1604909052743-94e838986d24?auto=format&fit=crop&w=640&q=80",
+    badge: "인기",
+    options: ["기본", "덜 맵게", "맵게", "공깃밥 추가"],
+    soldOut: false,
+  },
+  {
     id: "egg",
     category: "side",
     name: "치즈 계란찜",
@@ -636,6 +692,72 @@ const defaultMenu = [
     badge: "",
     options: ["기본", "치즈 많이", "파 빼기", "아이용"],
     soldOut: true,
+  },
+  {
+    id: "neck-steak",
+    category: "main",
+    name: "숙성 목살 스테이크",
+    desc: "두툼한 목살을 겉은 바삭하고 속은 촉촉하게 구운 메뉴",
+    price: 16000,
+    image: "https://images.unsplash.com/photo-1432139555190-58524dae6a55?auto=format&fit=crop&w=640&q=80",
+    badge: "추천",
+    options: ["기본", "덜 익힘", "바싹 익힘", "쌈 채소 추가"],
+    soldOut: false,
+  },
+  {
+    id: "marinated-galbi",
+    category: "main",
+    name: "양념 돼지갈비",
+    desc: "달큰한 특제 양념에 재운 부드러운 갈비",
+    price: 18000,
+    image: "https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?auto=format&fit=crop&w=640&q=80",
+    badge: "대표",
+    options: ["기본", "덜 익힘", "바싹 익힘", "양념 추가"],
+    soldOut: false,
+  },
+  {
+    id: "hangjeongsal",
+    category: "main",
+    name: "항정살 구이",
+    desc: "고소한 지방과 쫄깃한 식감이 좋은 특수부위",
+    price: 19000,
+    image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=640&q=80",
+    badge: "한정",
+    options: ["기본", "덜 익힘", "바싹 익힘", "소금 추가"],
+    soldOut: false,
+  },
+  {
+    id: "mul-naengmyeon",
+    category: "side",
+    name: "물냉면",
+    desc: "시원한 육수와 쫄깃한 면으로 마무리하기 좋은 메뉴",
+    price: 7000,
+    image: "https://images.unsplash.com/photo-1625938145744-e380515399ae?auto=format&fit=crop&w=640&q=80",
+    badge: "",
+    options: ["기본", "식초 빼기", "겨자 빼기", "곱빼기"],
+    soldOut: false,
+  },
+  {
+    id: "bibim-naengmyeon",
+    category: "side",
+    name: "비빔냉면",
+    desc: "매콤달콤한 양념장으로 고기와 잘 어울리는 냉면",
+    price: 7500,
+    image: "https://images.unsplash.com/photo-1612927601601-6638404737ce?auto=format&fit=crop&w=640&q=80",
+    badge: "매콤",
+    options: ["기본", "덜 맵게", "맵게", "곱빼기"],
+    soldOut: false,
+  },
+  {
+    id: "rice",
+    category: "side",
+    name: "공깃밥",
+    desc: "따뜻한 흰쌀밥",
+    price: 1000,
+    image: "https://images.unsplash.com/photo-1516684732162-798a0062be99?auto=format&fit=crop&w=640&q=80",
+    badge: "",
+    options: ["기본", "밥 적게", "밥 많이"],
+    soldOut: false,
   },
   {
     id: "soju",
@@ -649,12 +771,45 @@ const defaultMenu = [
     soldOut: false,
   },
   {
+    id: "beer",
+    category: "drink",
+    name: "맥주",
+    desc: "시원하게 준비한 병맥주",
+    price: 5000,
+    image: "https://images.unsplash.com/photo-1608270586620-248524c67de9?auto=format&fit=crop&w=640&q=80",
+    badge: "",
+    options: ["기본", "차갑게", "잔 추가"],
+    soldOut: false,
+  },
+  {
     id: "cola",
     category: "drink",
     name: "콜라",
     desc: "탄산음료",
     price: 2500,
     image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=640&q=80",
+    badge: "",
+    options: ["기본", "얼음 적게", "얼음 많이", "빨대 필요"],
+    soldOut: false,
+  },
+  {
+    id: "zero-cola",
+    category: "drink",
+    name: "제로콜라",
+    desc: "가볍게 마시기 좋은 제로 탄산음료",
+    price: 2500,
+    image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=640&q=80",
+    badge: "제로",
+    options: ["기본", "얼음 적게", "얼음 많이", "빨대 필요"],
+    soldOut: false,
+  },
+  {
+    id: "cider",
+    category: "drink",
+    name: "사이다",
+    desc: "깔끔한 탄산음료",
+    price: 2500,
+    image: "https://images.unsplash.com/photo-1581006852262-e4307cf6283a?auto=format&fit=crop&w=640&q=80",
     badge: "",
     options: ["기본", "얼음 적게", "얼음 많이", "빨대 필요"],
     soldOut: false,
@@ -702,7 +857,7 @@ function formatMoney(value) {
 
 function loadMenu() {
   const saved = readJson(MENU_KEY);
-  return Array.isArray(saved) && saved.length ? hydrateMenu(saved) : structuredClone(defaultMenu);
+  return Array.isArray(saved) && saved.length ? hydrateMenu(saved) : cloneDefaultMenu();
 }
 
 function saveMenu() {
@@ -729,7 +884,7 @@ function broadcastSync(type) {
 
 function hydrateMenu(menu) {
   const defaults = new Map(defaultMenu.map((item) => [item.id, item]));
-  return menu.map((item) => {
+  const hydratedMenu = menu.map((item) => {
     const fallback = defaults.get(item.id) || {};
     const hydrated = {
       ...fallback,
@@ -740,6 +895,41 @@ function hydrateMenu(menu) {
     hydrated.translations = item.translations || buildMenuTranslations(hydrated);
     return hydrated;
   });
+  return appendMissingDefaultMenuItems(hydratedMenu);
+}
+
+function cloneDefaultMenu() {
+  return defaultMenu.map((item, index) => {
+    const menu = structuredClone(item);
+    menu.sortOrder = index + 1;
+    menu.translations = buildMenuTranslations(menu);
+    return menu;
+  });
+}
+
+function appendMissingDefaultMenuItems(menu) {
+  if (!Array.isArray(menu) || menu.length === 0) return cloneDefaultMenu();
+  const existingIds = new Set(menu.map((item) => item.id));
+  const hasDefaultSeed = defaultMenu.some((item) => existingIds.has(item.id));
+  if (!hasDefaultSeed) return menu;
+
+  const nextMenu = [...menu];
+  defaultMenu.forEach((item) => {
+    if (existingIds.has(item.id)) return;
+    const menuItem = structuredClone(item);
+    menuItem.sortOrder = nextMenu.length + 1;
+    menuItem.translations = buildMenuTranslations(menuItem);
+    nextMenu.push(menuItem);
+    existingIds.add(menuItem.id);
+  });
+  return nextMenu;
+}
+
+function missingDefaultMenuItems(menu) {
+  const existingIds = new Set(menu.map((item) => item.id));
+  const hasDefaultSeed = defaultMenu.some((item) => existingIds.has(item.id));
+  if (!hasDefaultSeed) return [];
+  return defaultMenu.filter((item) => !existingIds.has(item.id));
 }
 
 function readJson(key) {
@@ -1129,8 +1319,7 @@ async function initCustomerFirebase() {
     const menuQuery = query(menusCollection(store), orderBy("sortOrder"));
     state.unsubscribers.push(
       onSnapshot(menuQuery, (snapshot) => {
-        state.menu = snapshot.docs.map((entry, index) => fromFirestoreMenu(entry, index));
-        if (state.menu.length === 0) state.menu = structuredClone(defaultMenu);
+        state.menu = appendMissingDefaultMenuItems(snapshot.docs.map((entry, index) => fromFirestoreMenu(entry, index)));
         renderCustomerMenu();
         renderPopularRail();
         renderCart();
@@ -1532,7 +1721,7 @@ function renderCustomerMenu() {
             <div>
               <div class="menu-meta-line">${category}${badge}</div>
               <div class="menu-title-line">
-                <h2>${escapeHtml(view.localizedName)}${item.soldOut ? `<span class="sold-badge">${t("soldOut")}</span>` : ""}</h2>
+                <h2>${escapeHtml(view.localizedName)}${item.soldOut ? ` <span class="sold-badge">${t("soldOut")}</span>` : ""}</h2>
               </div>
               <p>${escapeHtml(view.localizedDesc)}</p>
             </div>
@@ -2087,7 +2276,9 @@ async function connectAdminStore(storeId) {
 
   state.unsubscribers.push(
     onSnapshot(query(menusCollection(storeId), orderBy("sortOrder")), (snapshot) => {
-      state.menu = snapshot.docs.map((entry, index) => fromFirestoreMenu(entry, index));
+      const firestoreMenu = snapshot.docs.map((entry, index) => fromFirestoreMenu(entry, index));
+      state.menu = appendMissingDefaultMenuItems(firestoreMenu);
+      syncMissingStoreDefaultMenus(firestoreMenu).catch(console.error);
       renderMenuManager();
       renderMetrics();
       renderSystemStatus();
@@ -2138,10 +2329,7 @@ async function createStoreWithDefaults(storeName, tableCount) {
   }
 
   const batch = writeBatch(db);
-  defaultMenu.forEach((item, index) => {
-    const menu = structuredClone(item);
-    menu.sortOrder = index + 1;
-    menu.translations = buildMenuTranslations(menu);
+  cloneDefaultMenu().forEach((menu, index) => {
     batch.set(doc(db, "stores", storeRef.id, "menus", menu.id), toFirestoreMenu(menu, index + 1));
   });
 
@@ -2159,6 +2347,23 @@ async function createStoreWithDefaults(storeName, tableCount) {
     throw error;
   }
   await connectAdminStore(storeRef.id);
+}
+
+async function syncMissingStoreDefaultMenus(currentMenu) {
+  if (state.firebaseMode !== "admin" || !state.storeId) return;
+  const missing = missingDefaultMenuItems(currentMenu);
+  if (!missing.length) return;
+
+  const batch = writeBatch(db);
+  missing.forEach((item, index) => {
+    const menu = structuredClone(item);
+    menu.sortOrder = currentMenu.length + index + 1;
+    menu.translations = buildMenuTranslations(menu);
+    batch.set(menuDoc(menu.id), toFirestoreMenu(menu, menu.sortOrder), { merge: true });
+  });
+  await batch.commit();
+  state.firebaseStatus = `${missing.length}개 기본 메뉴를 복구했습니다.`;
+  renderFirebaseAdminPanel();
 }
 
 async function generateMissingQrSessions(tableCount) {
