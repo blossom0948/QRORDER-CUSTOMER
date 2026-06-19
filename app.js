@@ -52,21 +52,21 @@ const QR_DESIGNS = {
     footer: "ORDERON",
   },
   ticket: {
-    name: "라이트 티켓",
+    name: "매장 티켓",
     brand: "#ff6f4d",
     accent: "#111827",
     ink: "#111827",
-    background: "#fffaf4",
+    background: "#fff8f1",
     paper: "#ffffff",
     title: "테이블\n주문표",
     subtitle: "주문 후 자리에서 기다려 주세요",
     footer: "무료 테이블 주문",
   },
   stamp: {
-    name: "블랙 스탬프",
-    brand: "#15171a",
+    name: "스탬프 카드",
+    brand: "#111827",
     accent: "#ff6f4d",
-    ink: "#15171a",
+    ink: "#111827",
     background: "#ffffff",
     paper: "#fff4ec",
     title: "바로\n주문",
@@ -2433,13 +2433,13 @@ async function createQrCardPng(qrSrc, tableLabel, designName = state.qrDesign) {
   }
 
   ctx.fillStyle = design.ink;
-  ctx.font = "900 34px 'Malgun Gothic', Arial, sans-serif";
+  ctx.font = "900 34px Arial, sans-serif";
   ctx.fillText("O ORDERON", 70, 88);
-  ctx.font = "800 28px 'Malgun Gothic', Arial, sans-serif";
+  ctx.font = "800 28px Arial, sans-serif";
   ctx.textAlign = "right";
   ctx.fillText(state.storeName || "우리 매장", 650, 88);
   ctx.textAlign = "left";
-  ctx.font = "900 112px 'Malgun Gothic', Arial, sans-serif";
+  ctx.font = "900 112px Arial, sans-serif";
   const titleLines = design.title.split("\n");
   titleLines.forEach((line, index) => {
     ctx.fillText(line, 70, 220 + index * 122);
@@ -2454,12 +2454,12 @@ async function createQrCardPng(qrSrc, tableLabel, designName = state.qrDesign) {
   roundedRect(ctx, 70, 940, 240, 54, 999);
   ctx.fill();
   ctx.fillStyle = normalizedDesign === "signature" ? "#ffffff" : "#ffffff";
-  ctx.font = "900 28px 'Malgun Gothic', Arial, sans-serif";
+  ctx.font = "900 28px Arial, sans-serif";
   ctx.textAlign = "center";
   ctx.fillText(tableLabel, 190, 976);
 
   ctx.fillStyle = design.ink;
-  ctx.font = "900 34px 'Malgun Gothic', Arial, sans-serif";
+  ctx.font = "900 34px Arial, sans-serif";
   ctx.textAlign = "center";
   ctx.fillText(design.subtitle, canvas.width / 2, 1040);
   ctx.textAlign = "left";
@@ -2575,7 +2575,7 @@ function qrPrintCardHtml(tableLabel, qrSrc, designName) {
 function qrPrintStyles() {
   return `
     * { box-sizing: border-box; }
-    body { align-items: center; background: #fff; display: grid; font-family: "Malgun Gothic", Arial, sans-serif; justify-items: center; margin: 0; min-height: 100vh; padding: 16px; }
+    body { align-items: center; background: #fff; display: grid; font-family: Arial, sans-serif; justify-items: center; margin: 0; min-height: 100vh; padding: 16px; }
     body > h1 { color: #191919; font-size: 20px; margin: 0 0 12px; width: 100%; }
     .qr-print-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
     .qr-print-card { border-radius: 28px; display: grid; gap: 10px; min-height: 520px; overflow: hidden; page-break-inside: avoid; padding: 28px; position: relative; text-align: left; width: min(100%, 360px); }
